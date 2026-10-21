@@ -2,7 +2,7 @@ name: Update DB
 
 on:
   schedule:
-    - cron: "0 3 * * *"   # daily, 03:00 UTC / 06:00 Finnish time
+    - cron: "0 3 * * *"   # daily, 03:00 UTC
   workflow_dispatch:       # manual "Run workflow" button
 
 permissions:
@@ -46,3 +46,25 @@ jobs:
           gh release view db-latest >/dev/null 2>&1 || \
             gh release create db-latest --title "Latest DB" --notes "Auto-updated"
           gh release upload db-latest pp2_00.db --clobber
+
+      - name: Build site
+        run: |
+          mkdir -p _site
+          cp site/index.html pp2_00.db _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
