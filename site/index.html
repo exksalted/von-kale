@@ -26,8 +26,8 @@
 <script>
 const PRESETS = {
   "Best fishes of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "Best competition scores of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out-Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;"
-  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Weight = MAX(Weight) GROUP BY Lake, Type\nORDER BY Lake, Type;"
+  "Best competition scores of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out-Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
+  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Weight = MAX(Weight) GROUP BY Lake, Type\nORDER BY Lake, Type;",
   "List of seasons": "SELECT Season, COUNT(*) AS Rows FROM records GROUP BY Season;",
   "Tables": "SELECT name, sql FROM sqlite_master WHERE type = 'table';"
 };
