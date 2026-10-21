@@ -25,11 +25,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 const PRESETS = {
-  "Best fishes of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "Best competition scores of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out-Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Weight = MAX(Weight) GROUP BY Lake, Type\nORDER BY Lake, Type;",
-  "List of seasons": "SELECT Season, COUNT(*) AS Rows FROM records GROUP BY Season;",
-  "Tables": "SELECT name, sql FROM sqlite_master WHERE type = 'table';"
+  "Latest records": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Season = '0_0'\nORDER BY Date\nLIMIT 50;",
+  "Best fishes of all time": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
+  "Best competition scores of all time": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
+  "All team records": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Weight = MAX(Weight) GROUP BY Lake, Type\nORDER BY Lake, Type;",
+  "Total fish score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score WHERE Fish_ID < 100 GROUP BY Nick ORDER BY Score DESC;",
+  "Total competition score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score WHERE Fish_ID > 100 GROUP BY Nick ORDER BY Score DESC;"
 };
 
 const sel = document.getElementById("presets");
