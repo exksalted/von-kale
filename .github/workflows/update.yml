@@ -3,13 +3,18 @@ name: Update DB
 on:
   schedule:
     - cron: "0 3 * * *"   # daily, 03:00 UTC
-  workflow_dispatch:       # manual "Run workflow" button
+  workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: "Skip scraping; redeploy site using the DB from the latest release"
+        type: boolean
+        default: false
 
 permissions:
-  contents: write          # needed to create/update the Release
+  contents: write
 
 concurrency:
-  group: update-db         # never run two updates at once
+  group: update-db
   cancel-in-progress: false
 
 jobs:
@@ -20,26 +25,34 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
+        if: ${{ !inputs.deploy_only }}
         with:
           python-version: "3.12"
           cache: pip
 
       - run: pip install -r requirements.txt
+        if: ${{ !inputs.deploy_only }}
 
       - name: Download previous DB
         env:
           GH_TOKEN: ${{ github.token }}
+          DEPLOY_ONLY: ${{ inputs.deploy_only }}
         run: |
           if gh release view db-latest >/dev/null 2>&1; then
             gh release download db-latest --pattern pp2_00.db --clobber
+          elif [ "$DEPLOY_ONLY" = "true" ]; then
+            echo "deploy_only set but no db-latest release exists"; exit 1
           else
             echo "First run: no previous DB, starting fresh"
           fi
 
       - run: python totals.py
+        if: ${{ !inputs.deploy_only }}
       - run: python records.py
+        if: ${{ !inputs.deploy_only }}
 
       - name: Upload DB
+        if: ${{ !inputs.deploy_only }}
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -49,6 +62,7 @@ jobs:
 
       - name: Build site
         run: |
+          test -f pp2_00.db
           mkdir -p _site
           cp site/index.html pp2_00.db _site/
 
