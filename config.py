@@ -1,10 +1,8 @@
-# config.py
+import os
 
-# Season/list code used in the site's `list` parameter. Season name in the DB is this with "," -> "_".
-list_value = "0,0"
-
-# Players to scrape in records.py
-NICKS = ["Exksa", "Kuhasalaliitto", "Pumpkin", "Liilu:3"]
+# Workflow inputs arrive as env vars; empty/missing -> defaults
+list_value = os.environ.get("SEASON", "").strip() or "0,0"
+NICKS = [n.strip() for n in os.environ.get("NICKS", "").split(",") if n.strip()] or ["Exksa", "Kuhasalaliitto", "Pumpkin", "Liilu:3]
 
 # Map each lake (1-46) to its naturally present fish IDs.
 lake_specific_fishes = {
