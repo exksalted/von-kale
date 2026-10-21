@@ -3,24 +3,105 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PP2 records</title>
+<title>Team Von-Kale records</title>
 <style>
-  body { font-family: system-ui, sans-serif; margin: 1rem; max-width: 1100px; }
-  textarea { width: 100%; height: 9rem; font-family: monospace; }
-  .wrap { overflow-x: auto; }
-  table { border-collapse: collapse; margin-top: 1rem; }
-  th, td { border: 1px solid #8884; padding: 4px 8px; text-align: left; }
-  #status { margin: .5rem 0; }
-  .err { color: #c00; }
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d12;
+    --surface: #131720;
+    --surface-2: #1a1f2b;
+    --border: #262c3a;
+    --text: #e6e9f0;
+    --muted: #8b93a7;
+    --accent: #5b8cff;
+    --accent-2: #8b5cf6;
+    --err: #ff6b7a;
+    --ok: #4ade80;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0; padding: 2rem 1.25rem 4rem;
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    background:
+      radial-gradient(900px 400px at 10% -10%, #1b2a5544, transparent),
+      radial-gradient(700px 400px at 100% 0%, #3b1d6a33, transparent),
+      var(--bg);
+    min-height: 100vh;
+  }
+  main { max-width: 1100px; margin: 0 auto; }
+  h1 {
+    margin: 0 0 1.25rem; font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em;
+    background: linear-gradient(90deg, #fff, #9db6ff);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .panel {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1rem;
+    box-shadow: 0 10px 30px #0006;
+  }
+  select, textarea, button { font: inherit; color: var(--text); }
+  select {
+    width: 100%; margin-bottom: .75rem; padding: .6rem .8rem;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    cursor: pointer; outline: none;
+  }
+  textarea {
+    width: 100%; height: 9.5rem; padding: .8rem .9rem; resize: vertical;
+    font-family: var(--mono); font-size: 13px; line-height: 1.55;
+    background: #0d1017; border: 1px solid var(--border); border-radius: 10px; outline: none;
+  }
+  select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #5b8cff26; }
+  .bar { display: flex; align-items: center; gap: 1rem; margin-top: .75rem; }
+  button {
+    padding: .55rem 1.3rem; border: 0; border-radius: 10px; font-weight: 600; cursor: pointer;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 4px 14px #5b8cff44; transition: transform .1s, filter .15s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.12); }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+  #status { color: var(--muted); font-size: 13px; }
+  #status.err { color: var(--err); }
+  #status.ok { color: var(--ok); }
+  .wrap {
+    margin-top: 1.25rem; overflow: auto; max-height: 70vh;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
+  }
+  .wrap:empty { display: none; }
+  table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
+  th, td { padding: .6rem .9rem; text-align: left; white-space: nowrap; }
+  th {
+    position: sticky; top: 0; z-index: 1;
+    background: var(--surface-2); color: var(--muted);
+    font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+    border-bottom: 1px solid var(--border);
+  }
+  td { border-bottom: 1px solid #ffffff0a; }
+  tr:last-child td { border-bottom: 0; }
+  tbody tr { transition: background .12s; }
+  tbody tr:hover { background: #5b8cff12; }
+  .num { text-align: right; }
+  td.nick { font-weight: 600; color: #c9d6ff; }
+  .wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+  .wrap::-webkit-scrollbar-thumb { background: #2e3547; border-radius: 10px; }
 </style>
 </head>
 <body>
+<main>
 <h1>PP2 records</h1>
-<select id="presets"></select>
-<textarea id="sql"></textarea>
-<button id="run" disabled>Run</button>
-<div id="status">Loading database…</div>
+<section class="panel">
+  <select id="presets"></select>
+  <textarea id="sql" spellcheck="false"></textarea>
+  <div class="bar">
+    <button id="run" disabled>Run</button>
+    <div id="status">Loading database…</div>
+  </div>
+</section>
 <div class="wrap" id="out"></div>
+</main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
@@ -44,25 +125,40 @@ for (const name of Object.keys(PRESETS)) sel.add(new Option(name));
 box.value = PRESETS[sel.value];
 sel.onchange = () => { box.value = PRESETS[sel.value]; };
 
-function render(res) {
+function render(res, ms) {
   out.replaceChildren();
-  if (!res.length) { status.textContent = "Query OK, no rows."; return; }
+  if (!res.length) { status.className = "ok"; status.textContent = "Query OK, no rows."; return; }
   const { columns, values } = res[0];
   const table = document.createElement("table");
-  const head = table.insertRow();
-  columns.forEach(c => { const th = document.createElement("th"); th.textContent = c; head.appendChild(th); });
+  const thead = table.createTHead().insertRow();
+  columns.forEach((c, i) => {
+    const th = document.createElement("th");
+    th.textContent = c;
+    if (typeof values[0]?.[i] === "number") th.className = "num";
+    thead.appendChild(th);
+  });
+  const tbody = table.createTBody();
   values.forEach(r => {
-    const tr = table.insertRow();
-    r.forEach(v => { tr.insertCell().textContent = v === null ? "NULL" : v; });
+    const tr = tbody.insertRow();
+    r.forEach((v, i) => {
+      const td = tr.insertCell();
+      td.textContent = v === null ? "NULL" : v;
+      if (typeof v === "number") td.className = "num";
+      if (columns[i] === "Nick") td.className = "nick";
+    });
   });
   out.appendChild(table);
-  status.textContent = `${values.length} rows`;
+  status.className = "ok";
+  status.textContent = `${values.length} rows · ${ms} ms`;
 }
 
 function run() {
   status.className = "";
-  try { render(db.exec(box.value)); }
-  catch (e) { status.className = "err"; status.textContent = e.message; out.replaceChildren(); }
+  try {
+    const t = performance.now();
+    const res = db.exec(box.value);
+    render(res, Math.round(performance.now() - t));
+  } catch (e) { status.className = "err"; status.textContent = e.message; out.replaceChildren(); }
 }
 
 (async () => {
