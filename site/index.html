@@ -25,9 +25,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 const PRESETS = {
-  "Best scores": "SELECT Nick, Lake, Type, Rank, Out_Of, Weight, Date, ROUND(Score, 3) AS Score\nFROM records\nORDER BY Score DESC\nLIMIT 50;",
-  "Best rank per lake": "SELECT Lake, MIN(Rank) AS BestRank, COUNT(*) AS Species\nFROM records\nGROUP BY Lake\nORDER BY BestRank;",
-  "Seasons in DB": "SELECT Season, COUNT(*) AS Rows FROM records GROUP BY Season;",
+  "Best fishes of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
+  "Best competition scores of all time": "SELECT Nick, Lake, Type, Weight, Rank, Out-Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;"
+  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM records\nWHERE Weight = MAX(Weight) GROUP BY Lake, Type\nORDER BY Lake, Type;"
+  "List of seasons": "SELECT Season, COUNT(*) AS Rows FROM records GROUP BY Season;",
   "Tables": "SELECT name, sql FROM sqlite_master WHERE type = 'table';"
 };
 
