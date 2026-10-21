@@ -1,0 +1,48 @@
+name: Update DB
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # daily, 03:00 UTC / 06:00 Finnish time
+  workflow_dispatch:       # manual "Run workflow" button
+
+permissions:
+  contents: write          # needed to create/update the Release
+
+concurrency:
+  group: update-db         # never run two updates at once
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Download previous DB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view db-latest >/dev/null 2>&1; then
+            gh release download db-latest --pattern pp2_00.db --clobber
+          else
+            echo "First run: no previous DB, starting fresh"
+          fi
+
+      - run: python totals.py
+      - run: python records.py
+
+      - name: Upload DB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view db-latest >/dev/null 2>&1 || \
+            gh release create db-latest --title "Latest DB" --notes "Auto-updated"
+          gh release upload db-latest pp2_00.db --clobber
