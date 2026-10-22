@@ -4,119 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Team Von-Kale records</title>
-<style>
-  :root {
-    color-scheme: dark;
-    --bg: #0b0d12;
-    --surface: #131720;
-    --surface-2: #1a1f2b;
-    --border: #262c3a;
-    --text: #e6e9f0;
-    --muted: #8b93a7;
-    --accent: #5b8cff;
-    --accent-2: #8b5cf6;
-    --err: #ff6b7a;
-    --ok: #4ade80;
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
-  }
-  * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body {
-    margin: 0; padding: 2rem 1.25rem 4rem;
-    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    color: var(--text);
-    background:
-      radial-gradient(900px 400px at 10% -10%, #1b2a5544, transparent),
-      radial-gradient(700px 400px at 100% 0%, #3b1d6a33, transparent),
-      var(--bg);
-    min-height: 100vh;
-  }
-  main { max-width: 1100px; margin: 0 auto; }
-  h1 {
-    margin: 0 0 1.25rem; font-size: 1.9rem; font-weight: 700; letter-spacing: -.02em;
-    background: linear-gradient(90deg, #fff, #9db6ff);
-    -webkit-background-clip: text; background-clip: text; color: transparent;
-  }
-  .panel {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 14px; padding: 1rem;
-    box-shadow: 0 10px 30px #0006;
-  }
-  select, textarea, button { font: inherit; color: var(--text); }
-  select {
-    width: 100%; padding: .6rem .8rem;
-    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
-    cursor: pointer; outline: none;
-  }
-  textarea {
-    width: 100%; height: 9.5rem; padding: .8rem .9rem; resize: vertical;
-    font-family: var(--mono); font-size: 13px; line-height: 1.55;
-    background: #0d1017; border: 1px solid var(--border); border-radius: 10px; outline: none;
-  }
-  select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #5b8cff26; }
-  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; margin-bottom: .75rem; }
-  .controls #presets { grid-column: 1 / -1; }
-  details { margin-top: .25rem; }
-  summary { cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; padding: .2rem 0; }
-  summary:hover { color: var(--text); }
-  details textarea { margin-top: .5rem; }
-  th.sortable { cursor: pointer; user-select: none; }
-  th.sortable:hover { color: var(--text); }
-  th[data-dir="asc"]::after { content: " \25B2"; color: var(--accent); }
-  th[data-dir="desc"]::after { content: " \25BC"; color: var(--accent); }
-  .name { cursor: pointer; transition: filter .12s; }
-  .name:hover { filter: brightness(1.25); }
-  .bar { display: flex; align-items: center; gap: 1rem; margin-top: .75rem; }
-  button {
-    padding: .55rem 1.3rem; border: 0; border-radius: 10px; font-weight: 600; cursor: pointer;
-    background: linear-gradient(135deg, var(--accent), var(--accent-2));
-    box-shadow: 0 4px 14px #5b8cff44; transition: transform .1s, filter .15s;
-  }
-  button:hover:not(:disabled) { filter: brightness(1.12); }
-  button:active:not(:disabled) { transform: translateY(1px); }
-  button:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
-  #status { color: var(--muted); font-size: 13px; }
-  #status.err { color: var(--err); }
-  #status.ok { color: var(--ok); }
-  .wrap {
-    margin-top: 1.25rem; overflow: clip;
-    border: 1px solid var(--border); border-radius: 14px; background: var(--surface);
-  }
-  .wrap:empty { display: none; }
-  table { border-collapse: separate; border-spacing: 0; width: 100%; font-variant-numeric: tabular-nums; }
-  th, td { padding: .6rem .9rem; text-align: left; }
-  th {
-    position: sticky; top: 0; z-index: 1; backdrop-filter: blur(8px);
-    background: var(--surface-2); color: var(--muted);
-    font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-    border-bottom: 1px solid var(--border);
-  }
-  td { border-bottom: 1px solid #ffffff0a; }
-  tr:last-child td { border-bottom: 0; }
-  tbody tr { transition: background .12s; }
-  tbody tr:hover { background: #5b8cff12; }
-  .num { text-align: right; }
-  td.nick { font-weight: 700; }
-  .score {
-    --c: #8b93a7;
-    display: inline-block; min-width: 3.6rem; padding: .1rem .6rem; border-radius: 8px;
-    font-weight: 700; color: var(--c);
-    background: color-mix(in srgb, var(--c) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--c) 50%, transparent);
-  }
-  .name {
-    --c: #c9d6ff;
-    display: inline-block; padding: .1rem .6rem; border-radius: 999px;
-    color: var(--c); letter-spacing: .01em;
-    background: color-mix(in srgb, var(--c) 14%, transparent);
-    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
-    text-shadow: 0 0 12px color-mix(in srgb, var(--c) 55%, transparent);
-  }
-</style>
+<link rel="stylesheet" href="style.css">
+
 </head>
 <body>
 <main>
+<nav class="nav"><a href="index.html" class="on">Records</a><a href="matrix.html">Lake matrix</a></nav>
 <h1>Team Von-Kale records</h1>
 <section class="panel">
   <div class="controls">
@@ -137,6 +30,7 @@
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script src="common.js"></script>
 <script>
 const COLS = "Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score";
 const PRESETS = {
@@ -147,29 +41,6 @@ const PRESETS = {
   "Total fish score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID < 100${f}\nGROUP BY Nick ORDER BY Score DESC;`,
   "Total competition score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID > 100${f}\nGROUP BY Nick ORDER BY Score DESC;`
 };
-
-const NAME_COLORS = {
-  "liilu:3": "#a30465",
-  "pumpkin": "#FF7518",
-  "exksa": "#7ba63f",
-  "kuhasalaliitto": "#6495ED",
-  "ademan": "#40E0D0"
-};
-
-// Lower bound inclusive; first match from the top wins.
-const SCORE_TIERS = [
-  [100, "#dc2367"],
-  [50,  "#B3CA1F"],
-  [25,  "#E03030"],
-  [10,  "#D35400"],
-  [5,   "#F1C40F"],
-  [3,   "#7D3C98"],
-  [2,   "#2471A3"],
-  [1,   "#27AE60"],
-  [0.3, "#C5CAD3"],
-  [0, "#565c68"]
-];
-const scoreColor = v => SCORE_TIERS.find(([min]) => v >= min)[1];
 
 const sel = document.getElementById("presets");
 const box = document.getElementById("sql");
@@ -233,25 +104,12 @@ function render(ms) {
       const td = tr.insertCell();
       td.textContent = v === null ? "NULL" : v;
       if (typeof v === "number" || columns[i] === "Weight") td.className = "num";
-      if (columns[i] === "Score" && typeof v === "number") {
-        const span = document.createElement("span");
-        span.className = "score";
-        span.textContent = v.toFixed(2);
-        span.style.setProperty("--c", scoreColor(v));
-        td.replaceChildren(span);
-      }
+      if (columns[i] === "Score" && typeof v === "number") td.replaceChildren(scoreEl(v));
       if (columns[i] === "Nick" && v !== null) {
         td.className = "nick";
-        const span = document.createElement("span");
-        span.className = "name";
-        span.title = "Filter by " + v;
-        span.textContent = v;
-        const c = NAME_COLORS[String(v).trim().toLowerCase()];
-        if (c) span.style.setProperty("--c", c);
-        span.onclick = () => {
+        td.replaceChildren(nameEl(v, () => {
           if ([...fsel.Nick.options].some(o => o.value === v)) { fsel.Nick.value = v; refresh(); }
-        };
-        td.replaceChildren(span);
+        }));
       }
     });
   });
@@ -268,7 +126,7 @@ function run() {
     last = res[0] || null;
     sort = { col: -1, dir: "asc" };
     render(Math.round(performance.now() - t));
-  } catch (e) { status.className = "err"; status.textContent = e.message; out.replaceChildren(); }
+  } catch (e) { console.error("run() failed:", e); status.className = "err"; status.textContent = "Query failed: " + e.message; out.replaceChildren(); }
 }
 
 function fillFilters() {
@@ -287,20 +145,16 @@ function fillFilters() {
 
 (async () => {
   try {
-    const SQL = await initSqlJs({
-      locateFile: f => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/${f}`
-    });
-    const resp = await fetch("pp2_00.db");
-    if (!resp.ok) throw new Error(`DB download failed (${resp.status})`);
-    db = new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
+    db = await loadDb();
     runBtn.disabled = false;
     runBtn.onclick = run;
     box.addEventListener("keydown", e => { if (e.ctrlKey && e.key === "Enter") run(); });
     fillFilters();
     refresh();
   } catch (e) {
+    console.error("Startup failed:", e);
     status.className = "err";
-    status.textContent = e.message;
+    status.textContent = "Startup failed: " + e.message;
   }
 })();
 </script>

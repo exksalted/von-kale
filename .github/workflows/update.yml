@@ -94,7 +94,8 @@ jobs:
         run: |
           test -f pp2_00.db
           mkdir -p _site
-          cp site/index.html pp2_00.db _site/
+          cp -r site/. _site/
+          cp pp2_00.db _site/
 
       - uses: actions/upload-pages-artifact@v3
         with:
