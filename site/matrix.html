@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Von-Kale lake matrix</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="nav"><a href="index.html">Records</a><a href="matrix.html" class="on">Lake matrix</a></nav>
+<h1>Lake matrix</h1>
+<section class="panel">
+  <div class="controls">
+    <select id="season"></select>
+    <select id="lake"></select>
+  </div>
+  <div class="bar"><div id="status">Loading database…</div></div>
+</section>
+<div class="lakes" id="grid"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script src="common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const seasonSel = $("season"), lakeSel = $("lake"), grid = $("grid"), status = $("status");
+let db;
+
+// Best record per lake and fish type (competitions are Fish_ID > 100)
+const Q = `SELECT Lake_ID, Lake, Fish_ID, Type, Nick, Weight, Score, Date FROM (
+  SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake_ID, Fish_ID ORDER BY Score DESC) AS rn
+  FROM records r WHERE Season = ?) WHERE rn = 1 ORDER BY Lake_ID, Fish_ID`;
+
+const div = (cls, text) => { const d = document.createElement("div"); d.className = cls; if (text != null) d.textContent = text; return d; };
+
+function draw() {
+  grid.replaceChildren();
+  const rows = (db.exec(Q, [seasonSel.value])[0]?.values || []).filter(r => !lakeSel.value || String(r[0]) === lakeSel.value);
+  const lakes = new Map();
+  for (const r of rows) { if (!lakes.has(r[0])) lakes.set(r[0], []); lakes.get(r[0]).push(r); }
+  if (!lakes.size) { grid.appendChild(div("empty", "No records for this selection.")); status.textContent = ""; return; }
+
+  for (const [, recs] of lakes) {
+    const card = div("lake");
+    const h = document.createElement("h2");
+    h.textContent = recs[0][1];
+    h.appendChild(Object.assign(document.createElement("span"), { textContent: recs.length + " records" }));
+    card.appendChild(h);
+    let sepDone = false;
+    for (const [, , fishId, type, nick, weight, score, date] of recs) {
+      if (fishId > 100 && !sepDone) { card.appendChild(div("sep", "Competitions")); sepDone = true; }
+      const row = div("rec");
+      row.title = date || "";
+      row.appendChild(div("", type));
+      const who = div(""); who.appendChild(nameEl(nick)); row.appendChild(who);
+      row.appendChild(div("w", weight == null ? "\u2013" : weight + " g"));
+      const sc = div("s"); sc.append(typeof score === "number" ? scoreEl(score) : "\u2013"); row.appendChild(sc);
+      card.appendChild(row);
+    }
+    grid.appendChild(card);
+  }
+  status.className = "ok";
+  status.textContent = `${lakes.size} lakes \u00B7 ${rows.length} records`;
+}
+
+(async () => {
+  try {
+    db = await loadDb();
+    for (const [v] of db.exec("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL ORDER BY Season")[0]?.values || [])
+      seasonSel.add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v));
+    seasonSel.value = "0_0";
+    lakeSel.add(new Option("All lakes", ""));
+    for (const [id, name] of db.exec("SELECT DISTINCT Lake_ID, Lake FROM records WHERE Lake_ID IS NOT NULL ORDER BY Lake_ID")[0]?.values || [])
+      lakeSel.add(new Option(name, id));
+    seasonSel.onchange = lakeSel.onchange = draw;
+    draw();
+  } catch (e) {
+    console.error("Startup failed:", e);
+    status.className = "err";
+    status.textContent = "Startup failed: " + e.message;
+  }
+})();
+</script>
+</main>
+</body>
+</html>
