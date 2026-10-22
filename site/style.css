@@ -136,3 +136,6 @@
   .pane h3 { margin: 1.5rem 0 0; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
   .name.big { font-size: 1.25rem; padding: .2rem 1rem; }
   h1 .name { -webkit-text-fill-color: currentColor; }
+  .stat.link { cursor: pointer; transition: border-color .15s; }
+  .stat.link:hover { border-color: var(--accent); }
+  .score.big { font-size: 1.5rem; padding: .05rem .7rem; margin: .1rem 0; }
