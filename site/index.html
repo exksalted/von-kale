@@ -85,6 +85,14 @@
   tbody tr:hover { background: #5b8cff12; }
   .num { text-align: right; }
   td.nick { font-weight: 700; }
+  .score {
+    --c: #8b93a7;
+    display: inline-block; min-width: 3.6rem; padding: .1rem .6rem; border-radius: 8px;
+    font-weight: 700; color: var(--c);
+    background: color-mix(in srgb, var(--c) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--c) 50%, transparent);
+  }
   .name {
     --c: #c9d6ff;
     display: inline-block; padding: .1rem .6rem; border-radius: 999px;
@@ -112,20 +120,34 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
 const PRESETS = {
-  "Latest records": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Season = '0_0'\nORDER BY Date DESC, Score DESC\nLIMIT 50;",
-  "Best fishes of all time": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "Best competition scores of all time": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn FROM records r) t WHERE rn = 1 AND Season = '0_0' ORDER BY Lake, Type;",
+  "Latest records": "SELECT Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Season = '0_0'\nORDER BY Date DESC, Score DESC\nLIMIT 50;",
+  "Best fishes of all time": "SELECT Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
+  "Best competition scores of all time": "SELECT Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
+  "All team records": "SELECT Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn FROM records r) t WHERE rn = 1 AND Season = '0_0' ORDER BY Lake, Type;",
   "Total fish score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID < 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;",
   "Total competition score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID > 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;"
 };
 
 const NAME_COLORS = {
-  "liilu:3": "#d6338f",
+  "liilu:3": "#a30465",
   "pumpkin": "#FF7518",
   "exksa": "#7ba63f",
   "kuhasalaliitto": "#6495ED"
 };
+
+// Lower bound inclusive; first match from the top wins.
+const SCORE_TIERS = [
+  [100, "#DC2367"],
+  [50,  "#E03030"],
+  [10,  "#D35400"],
+  [5,   "#F1C40F"],
+  [3,   "#7D3C98"],
+  [2,   "#2471A3"],
+  [1,   "#27AE60"],
+  [0.3, "#C5CAD3"],
+  [-Infinity, "#565c68"]
+];
+const scoreColor = v => SCORE_TIERS.find(([min]) => v >= min)[1];
 
 const sel = document.getElementById("presets");
 const box = document.getElementById("sql");
@@ -147,7 +169,7 @@ function render(res, ms) {
   columns.forEach((c, i) => {
     const th = document.createElement("th");
     th.textContent = c;
-    if (typeof values[0]?.[i] === "number") th.className = "num";
+    if (typeof values[0]?.[i] === "number" || c === "Weight") th.className = "num";
     thead.appendChild(th);
   });
   const tbody = table.createTBody();
@@ -156,7 +178,14 @@ function render(res, ms) {
     r.forEach((v, i) => {
       const td = tr.insertCell();
       td.textContent = v === null ? "NULL" : v;
-      if (typeof v === "number") td.className = "num";
+      if (typeof v === "number" || columns[i] === "Weight") td.className = "num";
+      if (columns[i] === "Score" && typeof v === "number") {
+        const span = document.createElement("span");
+        span.className = "score";
+        span.textContent = v;
+        span.style.setProperty("--c", scoreColor(v));
+        td.replaceChildren(span);
+      }
       if (columns[i] === "Nick" && v !== null) {
         td.className = "nick";
         const span = document.createElement("span");
