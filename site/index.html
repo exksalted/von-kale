@@ -44,7 +44,7 @@
   }
   select, textarea, button { font: inherit; color: var(--text); }
   select {
-    width: 100%; margin-bottom: .75rem; padding: .6rem .8rem;
+    width: 100%; padding: .6rem .8rem;
     background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
     cursor: pointer; outline: none;
   }
@@ -54,6 +54,18 @@
     background: #0d1017; border: 1px solid var(--border); border-radius: 10px; outline: none;
   }
   select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #5b8cff26; }
+  .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .6rem; margin-bottom: .75rem; }
+  .controls #presets { grid-column: 1 / -1; }
+  details { margin-top: .25rem; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; padding: .2rem 0; }
+  summary:hover { color: var(--text); }
+  details textarea { margin-top: .5rem; }
+  th.sortable { cursor: pointer; user-select: none; }
+  th.sortable:hover { color: var(--text); }
+  th[data-dir="asc"]::after { content: " \25B2"; color: var(--accent); }
+  th[data-dir="desc"]::after { content: " \25BC"; color: var(--accent); }
+  .name { cursor: pointer; transition: filter .12s; }
+  .name:hover { filter: brightness(1.25); }
   .bar { display: flex; align-items: center; gap: 1rem; margin-top: .75rem; }
   button {
     padding: .55rem 1.3rem; border: 0; border-radius: 10px; font-weight: 600; cursor: pointer;
@@ -107,25 +119,33 @@
 <main>
 <h1>Team Von-Kale records</h1>
 <section class="panel">
-  <select id="presets"></select>
-  <textarea id="sql" spellcheck="false"></textarea>
-  <div class="bar">
-    <button id="run" disabled>Run</button>
-    <div id="status">Loading database…</div>
+  <div class="controls">
+    <select id="presets"></select>
+    <select id="f-Nick"></select>
+    <select id="f-Lake"></select>
+    <select id="f-Type"></select>
+    <select id="f-Season"></select>
   </div>
+  <details>
+    <summary>Advanced: edit SQL</summary>
+    <textarea id="sql" spellcheck="false"></textarea>
+    <div class="bar"><button id="run" disabled>Run</button><span style="color:var(--muted);font-size:13px">Ctrl+Enter runs the query</span></div>
+  </details>
+  <div class="bar"><div id="status">Loading database…</div></div>
 </section>
 <div class="wrap" id="out"></div>
 </main>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script>
+const COLS = "Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score";
 const PRESETS = {
-  "Latest records": "SELECT Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Season = '0_0'\nORDER BY Date DESC, Score DESC\nLIMIT 50;",
-  "Best fishes of all time": "SELECT Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "Best competition scores of all time": "SELECT Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "All team records": "SELECT Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn FROM records r) t WHERE rn = 1 AND Season = '0_0' ORDER BY Lake, Type;",
-  "Total fish score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID < 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;",
-  "Total competition score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID > 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;"
+  "Latest records": f => `SELECT ${COLS}\nFROM records\nWHERE 1 = 1${f}\nORDER BY Date DESC, Score DESC\nLIMIT 50;`,
+  "Best fishes of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID < 100${f}\nORDER BY Score DESC\nLIMIT 50;`,
+  "Best competition scores of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID > 100${f}\nORDER BY Score DESC\nLIMIT 50;`,
+  "All team records": f => `SELECT Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn\n      FROM records r WHERE 1 = 1${f}) t\nWHERE rn = 1\nORDER BY Lake, Type;`,
+  "Total fish score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID < 100${f}\nGROUP BY Nick ORDER BY Score DESC;`,
+  "Total competition score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID > 100${f}\nGROUP BY Nick ORDER BY Score DESC;`
 };
 
 const NAME_COLORS = {
@@ -146,7 +166,7 @@ const SCORE_TIERS = [
   [2,   "#2471A3"],
   [1,   "#27AE60"],
   [0.3, "#C5CAD3"],
-  [-Infinity, "#565c68"]
+  [0, "#565c68"]
 ];
 const scoreColor = v => SCORE_TIERS.find(([min]) => v >= min)[1];
 
@@ -157,24 +177,56 @@ const out = document.getElementById("out");
 const runBtn = document.getElementById("run");
 let db;
 
-for (const name of Object.keys(PRESETS)) sel.add(new Option(name));
-box.value = PRESETS[sel.value];
-sel.onchange = () => { box.value = PRESETS[sel.value]; };
+const FILTERS = { Nick: "nicknames", Lake: "lakes", Type: "types", Season: "seasons" };
+const fsel = Object.fromEntries(Object.keys(FILTERS).map(c => [c, document.getElementById("f-" + c)]));
+let last = null, sort = { col: -1, dir: "asc" };
 
-function render(res, ms) {
+for (const name of Object.keys(PRESETS)) sel.add(new Option(name));
+const esc = v => v.replace(/'/g, "''");
+const filt = () => Object.keys(FILTERS).map(c => (fsel[c].value || c === "Season") ? ` AND ${c} = '${esc(fsel[c].value || "0_0")}'` : "").join("");
+function refresh() { box.value = PRESETS[sel.value](filt()); run(); }
+sel.onchange = refresh;
+Object.values(fsel).forEach(el => el.onchange = refresh);
+
+// sortable value: numbers and "850 g" style strings compare numerically
+const key = v => {
+  if (typeof v === "number") return v;
+  const m = typeof v === "string" && v.match(/^-?\d+(\.\d+)?( g)?$/);
+  return m ? parseFloat(v) : v;
+};
+function compare(i) {
+  const d = sort.dir === "asc" ? 1 : -1;
+  return (x, y) => {
+    const a = x[i], b = y[i];
+    if (a === null) return 1;
+    if (b === null) return -1;
+    const ka = key(a), kb = key(b);
+    return (ka < kb ? -1 : ka > kb ? 1 : 0) * d;
+  };
+}
+
+function render(ms) {
   out.replaceChildren();
-  if (!res.length) { status.className = "ok"; status.textContent = "Query OK, no rows."; return; }
-  const { columns, values } = res[0];
+  if (!last) { status.className = "ok"; status.textContent = "Query OK, no rows."; return; }
+  const { columns, values } = last;
+  const rows = sort.col >= 0 ? [...values].sort(compare(sort.col)) : values;
   const table = document.createElement("table");
   const thead = table.createTHead().insertRow();
   columns.forEach((c, i) => {
     const th = document.createElement("th");
     th.textContent = c;
-    if (typeof values[0]?.[i] === "number" || c === "Weight") th.className = "num";
+    th.className = "sortable" + (typeof values[0]?.[i] === "number" || c === "Weight" ? " num" : "");
+    if (sort.col === i) th.dataset.dir = sort.dir;
+    th.onclick = () => {
+      if (sort.col !== i) sort = { col: i, dir: "asc" };
+      else if (sort.dir === "asc") sort.dir = "desc";
+      else sort = { col: -1, dir: "asc" };
+      render(ms);
+    };
     thead.appendChild(th);
   });
   const tbody = table.createTBody();
-  values.forEach(r => {
+  rows.forEach(r => {
     const tr = tbody.insertRow();
     r.forEach((v, i) => {
       const td = tr.insertCell();
@@ -191,16 +243,20 @@ function render(res, ms) {
         td.className = "nick";
         const span = document.createElement("span");
         span.className = "name";
+        span.title = "Filter by " + v;
         span.textContent = v;
         const c = NAME_COLORS[String(v).trim().toLowerCase()];
         if (c) span.style.setProperty("--c", c);
+        span.onclick = () => {
+          if ([...fsel.Nick.options].some(o => o.value === v)) { fsel.Nick.value = v; refresh(); }
+        };
         td.replaceChildren(span);
       }
     });
   });
   out.appendChild(table);
   status.className = "ok";
-  status.textContent = `${values.length} rows · ${ms} ms`;
+  status.textContent = `${values.length} rows \u00B7 ${ms} ms`;
 }
 
 function run() {
@@ -208,8 +264,24 @@ function run() {
   try {
     const t = performance.now();
     const res = db.exec(box.value);
-    render(res, Math.round(performance.now() - t));
+    last = res[0] || null;
+    sort = { col: -1, dir: "asc" };
+    render(Math.round(performance.now() - t));
   } catch (e) { status.className = "err"; status.textContent = e.message; out.replaceChildren(); }
+}
+
+function fillFilters() {
+  for (const [c, label] of Object.entries(FILTERS)) {
+    const res = db.exec(`SELECT DISTINCT ${c} FROM records WHERE ${c} IS NOT NULL ORDER BY ${c}`);
+    const vals = (res[0]?.values || []).map(r => r[0]);
+    if (c === "Season") {
+      vals.forEach(v => fsel[c].add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v)));
+      fsel[c].value = "0_0";
+    } else {
+      fsel[c].add(new Option("All " + label, ""));
+      vals.forEach(v => fsel[c].add(new Option(v, v)));
+    }
+  }
 }
 
 (async () => {
@@ -223,7 +295,8 @@ function run() {
     runBtn.disabled = false;
     runBtn.onclick = run;
     box.addEventListener("keydown", e => { if (e.ctrlKey && e.key === "Enter") run(); });
-    status.textContent = "Ready. Ctrl+Enter runs the query.";
+    fillFilters();
+    refresh();
   } catch (e) {
     status.className = "err";
     status.textContent = e.message;
