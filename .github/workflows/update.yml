@@ -68,6 +68,13 @@ jobs:
           else
             echo "First run: no previous DB, starting fresh"
           fi
+          
+      - name: Check totals exist
+        if: ${{ inputs.skip_totals && !inputs.deploy_only }}
+        run: |
+          S="${SEASON:-0,0}"; S="${S//,/_}"
+          n=$(sqlite3 pp2_00.db "SELECT COUNT(*) FROM totalrecords WHERE Season='$S'" 2>/dev/null || echo 0)
+          [ "$n" -gt 0 ] || { echo "No totalrecords for season $S in the previous DB; run without skip_totals first."; exit 1; }
 
       - run: python totals.py
         if: ${{ !inputs.deploy_only && !inputs.skip_totals }}
