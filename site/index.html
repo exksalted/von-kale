@@ -84,7 +84,15 @@
   tbody tr { transition: background .12s; }
   tbody tr:hover { background: #5b8cff12; }
   .num { text-align: right; }
-  td.nick { font-weight: 600; color: #c9d6ff; }
+  td.nick { font-weight: 700; }
+  .name {
+    --c: #c9d6ff;
+    display: inline-block; padding: .1rem .6rem; border-radius: 999px;
+    color: var(--c); letter-spacing: .01em;
+    background: color-mix(in srgb, var(--c) 14%, transparent);
+    border: 1px solid color-mix(in srgb, var(--c) 40%, transparent);
+    text-shadow: 0 0 12px color-mix(in srgb, var(--c) 55%, transparent);
+  }
 </style>
 </head>
 <body>
@@ -110,6 +118,13 @@ const PRESETS = {
   "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn FROM records r) t WHERE rn = 1 AND Season = '0_0' ORDER BY Lake, Type;",
   "Total fish score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID < 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;",
   "Total competition score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID > 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;"
+};
+
+const NAME_COLORS = {
+  "liilu:3": "#a30465",
+  "pumpkin": "#FF7518",
+  "exksa": "#7ba63f",
+  "kuhasalaliitto": "#6495ED"
 };
 
 const sel = document.getElementById("presets");
@@ -142,7 +157,15 @@ function render(res, ms) {
       const td = tr.insertCell();
       td.textContent = v === null ? "NULL" : v;
       if (typeof v === "number") td.className = "num";
-      if (columns[i] === "Nick") td.className = "nick";
+      if (columns[i] === "Nick" && v !== null) {
+        td.className = "nick";
+        const span = document.createElement("span");
+        span.className = "name";
+        span.textContent = v;
+        const c = NAME_COLORS[String(v).trim().toLowerCase()];
+        if (c) span.style.setProperty("--c", c);
+        td.replaceChildren(span);
+      }
     });
   });
   out.appendChild(table);
