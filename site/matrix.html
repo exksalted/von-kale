@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Team Von-Kale lake matrix</title>
+<title>Team Von-Kale records matrix</title>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
 <main>
-<nav class="nav"><a href="index.html">Records</a><a href="matrix.html" class="on">Lake matrix</a></nav>
-<h1>Lake matrix</h1>
+<nav class="nav"><a href="index.html">Records</a><a href="matrix.html" class="on">Records matrix</a></nav>
+<h1>Records matrix</h1>
 <section class="panel">
   <div class="controls">
     <select id="season"></select>
@@ -40,7 +40,7 @@ function draw() {
   for (const r of rows) { if (!lakes.has(r[0])) lakes.set(r[0], []); lakes.get(r[0]).push(r); }
   if (!lakes.size) { grid.appendChild(div("empty", "No records for this selection.")); status.textContent = ""; return; }
 
-  for (const [, recs] of lakes) {
+  for (const [, recs] of [...lakes].sort((a, b) => String(a[1][0][1]).localeCompare(String(b[1][0][1]), "fi"))) {
     const card = div("lake");
     const h = document.createElement("h2");
     h.textContent = recs[0][1];
@@ -66,12 +66,13 @@ function draw() {
 (async () => {
   try {
     db = await loadDb();
-    for (const [v] of db.exec("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL ORDER BY Season")[0]?.values || [])
-      seasonSel.add(new Option(seasonLabel(v), v));
+    const seasons = (db.exec("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL")[0]?.values || []).map(r => r[0]);
+    sortSeasons(seasons).forEach(v => seasonSel.add(new Option(seasonLabel(v), v)));
     seasonSel.value = "0_0";
     lakeSel.add(new Option("All lakes", ""));
-    for (const [id, name] of db.exec("SELECT DISTINCT Lake_ID, Lake FROM records WHERE Lake_ID IS NOT NULL ORDER BY Lake_ID")[0]?.values || [])
-      lakeSel.add(new Option(name, id));
+    const lakeRows = db.exec("SELECT DISTINCT Lake_ID, Lake FROM records WHERE Lake_ID IS NOT NULL")[0]?.values || [];
+    lakeRows.sort((x, y) => String(x[1]).localeCompare(String(y[1]), "fi"))
+      .forEach(([id, name]) => lakeSel.add(new Option(name, id)));
     seasonSel.onchange = lakeSel.onchange = draw;
     draw();
   } catch (e) {
