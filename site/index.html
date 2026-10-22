@@ -109,9 +109,9 @@ const PRESETS = {
   "Latest records": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Season = '0_0'\nORDER BY Date DESC, Score DESC\nLIMIT 50;",
   "Best fishes of all time": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
   "Best competition scores of all time": "SELECT Date, Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'\nORDER BY Score DESC\nLIMIT 50;",
-  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn FROM records r) t WHERE rn = 1 ORDER BY Lake, Type;",
-  "Total fish score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID < 100 GROUP BY Nick ORDER BY Score DESC;",
-  "Total competition score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID > 100 GROUP BY Nick ORDER BY Score DESC;"
+  "All team records": "SELECT Nick, Lake, Type, Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date FROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn FROM records r) t WHERE rn = 1 AND Season = '0_0' ORDER BY Lake, Type;",
+  "Total fish score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID < 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;",
+  "Total competition score": "SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records WHERE Fish_ID > 100 AND Season = '0_0' GROUP BY Nick ORDER BY Score DESC;"
 };
 
 const sel = document.getElementById("presets");
