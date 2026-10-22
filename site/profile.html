@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Von-Kale player profile</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<main>
+<nav class="nav"><a href="index.html">Records</a><a href="matrix.html">Lake matrix</a></nav>
+<h1 id="name">Player profile</h1>
+<section class="panel">
+  <div class="controls"><select id="nick"></select><select id="season"></select></div>
+  <div class="bar"><div id="status">Loading database\u2026</div></div>
+</section>
+<div class="tabs" id="tabs"></div>
+<div class="pane" id="p-overview"></div>
+<div class="pane" id="p-records" hidden></div>
+<div class="pane" id="p-lakes" hidden></div>
+<div class="pane" id="p-species" hidden></div>
+<div class="pane" id="p-team" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
+<script src="common.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const nickSel = $("nick"), seasonSel = $("season"), status = $("status");
+const TABS = [["overview", "Overview"], ["records", "All records"], ["lakes", "By lake"], ["species", "By species"], ["team", "Team records"]];
+let db, tab = "overview";
+
+const q = (sql, p) => db.exec(sql, p)[0]?.values || [];
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const f2 = v => (v == null ? "\u2013" : v.toFixed(2));
+const sum = a => a.reduce((t, r) => t + (r[6] || 0), 0);   // r[6] = Score
+
+const sortKey = c => {
+  const t = c instanceof Node ? c.textContent : String(c);
+  if (t === "\u2013") return null;
+  return /^-?\d+(\.\d+)?(?: g| \/ .*)?$/.test(t) ? parseFloat(t) : t;
+};
+
+function table(heads, rows, num = []) {
+  const wrap = el("div", "wrap");
+  if (!rows.length) { wrap.append(el("div", "empty", "Nothing here yet.")); return wrap; }
+  let col = -1, dir = 1;
+  const t = el("table"), hr = t.createTHead().insertRow(), tb = t.createTBody(), ths = [];
+  const fill = () => {
+    const rs = col < 0 ? rows : [...rows].sort((a, b) => {
+      const x = sortKey(a[col]), y = sortKey(b[col]);
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * dir;
+    });
+    tb.replaceChildren();
+    rs.forEach(r => { const tr = tb.insertRow(); r.forEach((c, i) => { const td = tr.insertCell(); td.append(c); if (num.includes(i)) td.className = "num"; }); });
+    ths.forEach((th, i) => { if (i === col) th.dataset.dir = dir > 0 ? "asc" : "desc"; else delete th.dataset.dir; });
+  };
+  heads.forEach((h, i) => {
+    const th = el("th", "sortable" + (num.includes(i) ? " num" : ""), h);
+    th.onclick = () => { if (col !== i) { col = i; dir = 1; } else if (dir === 1) dir = -1; else col = -1; fill(); };
+    ths.push(th); hr.append(th);
+  });
+  fill();
+  wrap.append(t);
+  return wrap;
+}
+
+// record row: [Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID]
+const recRow = r => [r[0] || "", r[1], r[2], r[3] == null ? "\u2013" : r[3] + " g",
+  r[4] == null ? "\u2013" : `${r[4]} / ${r[5] ?? "?"}`, r[6] == null ? "\u2013" : scoreEl(r[6])];
+const REC_HEADS = ["Date", "Lake", "Type", "Weight", "Rank", "Score"];
+
+function kindPane(rows) {
+  const box = el("div"), holder = el("div"), kind = el("select");
+  kind.style.cssText = "width:auto;margin-top:.25rem";
+  ["All", "Fish", "Competitions"].forEach(k => kind.add(new Option(k)));
+  const draw = () => {
+    const rs = kind.value === "Fish" ? rows.filter(r => r[7] < 100) : kind.value === "Competitions" ? rows.filter(r => r[7] > 100) : rows;
+    holder.replaceChildren(table(REC_HEADS, rs.map(recRow), [3, 4, 5]));
+  };
+  kind.onchange = draw; draw();
+  box.append(kind, holder);
+  return box;
+}
+
+function group(rows, keyIdx) {
+  const m = new Map();
+  for (const r of rows) {
+    const g = m.get(r[keyIdx]) || { n: 0, s: 0, best: null, w: null };
+    g.n++; g.s += r[6] || 0;
+    if (r[6] != null && (g.best == null || r[6] > g.best)) g.best = r[6];
+    if (r[3] != null && (g.w == null || r[3] > g.w)) g.w = r[3];
+    m.set(r[keyIdx], g);
+  }
+  return [...m].sort((a, b) => b[1].s - a[1].s);
+}
+
+function render() {
+  const season = seasonSel.value, nick = nickSel.value;
+  history.replaceState(null, "", `?nick=${encodeURIComponent(nick)}&season=${encodeURIComponent(season)}`);
+  const mine = q("SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM records WHERE Season = ? AND Nick = ? ORDER BY Score DESC", [season, nick]);
+  const team = q(`SELECT Nick, SUM(CASE WHEN Fish_ID < 100 THEN Score END), SUM(CASE WHEN Fish_ID > 100 THEN Score END)
+                  FROM records WHERE Season = ? GROUP BY Nick`, [season]);
+  const heldRows = q(`SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM (
+    SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake_ID, Fish_ID ORDER BY Score DESC) rn FROM records r WHERE Season = ?)
+    WHERE rn = 1 AND Nick = ? ORDER BY Score DESC`, [season, nick]);
+  const fish = mine.filter(r => r[7] < 100), comp = mine.filter(r => r[7] > 100);
+  const me = team.find(t => t[0] === nick);
+  const rank = i => `#${1 + team.filter(t => t[0] !== nick && (t[i] || 0) > (me?.[i] || 0)).length} of ${team.length} in team`;
+
+  $("name").replaceChildren(nameEl(nick, false));
+  $("name").firstChild.classList.add("big");
+  status.className = "ok";
+  status.textContent = `${mine.length} records`;
+
+  // Overview
+  const cards = el("div", "cards");
+  const big = v => { const b = scoreEl(v); b.classList.add("big"); return b; };
+  [["Fish score", big(sum(fish)), rank(1)], ["Competition score", big(sum(comp)), rank(2)],
+   ["Records", mine.length, `${fish.length} fish \u00B7 ${comp.length} competition`],
+   ["Team records held", heldRows.length, "best in team \u00B7 click to view", "team"]].forEach(([k, v, sub, go]) => {
+    const c = el("div", "stat"), val = el("div", "v");
+    val.append(v);
+    c.append(el("div", "k", k), val, el("div", "sub", sub));
+    if (go) { c.classList.add("link"); c.onclick = () => showTab(go); }
+    cards.append(c);
+  });
+  $("p-overview").replaceChildren(cards, el("h3", "", "Best fish"), table(REC_HEADS, fish.slice(0, 5).map(recRow), [3, 4, 5]),
+    el("h3", "", "Best competitions"), table(REC_HEADS, comp.slice(0, 5).map(recRow), [3, 4, 5]));
+
+  $("p-records").replaceChildren(kindPane(mine));
+  $("p-team").replaceChildren(kindPane(heldRows));
+
+  // By lake: fish and competition sums side by side
+  const lakes = new Map();
+  for (const r of mine) { const g = lakes.get(r[1]) || [0, 0, 0]; g[r[7] > 100 ? 1 : 0] += r[6] || 0; g[2]++; lakes.set(r[1], g); }
+  $("p-lakes").replaceChildren(table(["Lake", "Fish score", "Competition score", "Records"],
+    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), String(g[2])]), [1, 2, 3]));
+
+  // By species / competition type
+  const sp = rows => table(["Type", "Records", "Total score", "Best score", "Heaviest"],
+    group(rows, 2).map(([t, g]) => [t, String(g.n), f2(g.s), g.best == null ? "\u2013" : scoreEl(g.best), g.w == null ? "\u2013" : g.w + " g"]), [1, 2, 3, 4]);
+  $("p-species").replaceChildren(el("h3", "", "Fish species"), sp(fish), el("h3", "", "Competition types"), sp(comp));
+}
+
+function showTab(t) {
+  tab = t;
+  TABS.forEach(([id]) => { $("p-" + id).hidden = id !== t; });
+  [...$("tabs").children].forEach(b => b.classList.toggle("on", b.dataset.t === t));
+}
+
+(async () => {
+  try {
+    db = await loadDb();
+    TABS.forEach(([id, label]) => { const b = el("button", "tab", label); b.dataset.t = id; b.onclick = () => showTab(id); $("tabs").append(b); });
+    const nicks = q("SELECT DISTINCT Nick FROM records WHERE Nick IS NOT NULL ORDER BY Nick").map(r => r[0]);
+    nicks.forEach(n => nickSel.add(new Option(n, n)));
+    q("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL ORDER BY Season")
+      .forEach(([v]) => seasonSel.add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v)));
+    const p = new URLSearchParams(location.search);
+    seasonSel.value = [...seasonSel.options].some(o => o.value === p.get("season")) ? p.get("season") : "0_0";
+    const top = q("SELECT Nick FROM records WHERE Season = '0_0' GROUP BY Nick ORDER BY SUM(Score) DESC LIMIT 1")[0]?.[0];
+    nickSel.value = nicks.includes(p.get("nick")) ? p.get("nick") : (top || nicks[0] || "");
+    nickSel.onchange = seasonSel.onchange = render;
+    render(); showTab("overview");
+  } catch (e) {
+    console.error("Startup failed:", e);
+    status.className = "err";
+    status.textContent = "Startup failed: " + e.message;
+  }
+})();
+</script>
+</main>
+</body>
+</html>

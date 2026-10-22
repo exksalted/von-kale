@@ -27,14 +27,19 @@ function scoreEl(v) {
   return span;
 }
 
-function nameEl(nick, onclick) {
+function nameEl(nick, link = true) {
   const span = document.createElement("span");
   span.className = "name";
   span.textContent = nick;
-  const c = NAME_COLORS[String(nick).trim().toLowerCase()];
-  if (c) span.style.setProperty("--c", c);
-  if (onclick) { span.title = "Filter by " + nick; span.onclick = onclick; }
-  else span.style.cursor = "default";
+  const col = NAME_COLORS[String(nick).trim().toLowerCase()];
+  if (col) span.style.setProperty("--c", col);
+  if (link) {
+    span.title = "View profile";
+    span.onclick = () => {
+      const sv = (document.getElementById("season") || document.getElementById("f-Season"))?.value;
+      location.href = "profile.html?nick=" + encodeURIComponent(nick) + (sv && sv !== "0_0" ? "&season=" + encodeURIComponent(sv) : "");
+    };
+  } else span.style.cursor = "default";
   return span;
 }
 

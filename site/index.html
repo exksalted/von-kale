@@ -107,9 +107,7 @@ function render(ms) {
       if (columns[i] === "Score" && typeof v === "number") td.replaceChildren(scoreEl(v));
       if (columns[i] === "Nick" && v !== null) {
         td.className = "nick";
-        td.replaceChildren(nameEl(v, () => {
-          if ([...fsel.Nick.options].some(o => o.value === v)) { fsel.Nick.value = v; refresh(); }
-        }));
+        td.replaceChildren(nameEl(v));
       }
     });
   });
