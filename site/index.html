@@ -124,6 +124,7 @@
     <select id="f-Nick"></select>
     <select id="f-Lake"></select>
     <select id="f-Type"></select>
+    <select id="f-Season"></select>
   </div>
   <details>
     <summary>Advanced: edit SQL</summary>
@@ -139,12 +140,12 @@
 <script>
 const COLS = "Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score";
 const PRESETS = {
-  "Latest records": f => `SELECT ${COLS}\nFROM records\nWHERE Season = '0_0'${f}\nORDER BY Date DESC, Score DESC\nLIMIT 50;`,
-  "Best fishes of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID < 100 AND Season = '0_0'${f}\nORDER BY Score DESC\nLIMIT 50;`,
-  "Best competition scores of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID > 100 AND Season = '0_0'${f}\nORDER BY Score DESC\nLIMIT 50;`,
-  "All team records": f => `SELECT Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn\n      FROM records r WHERE Season = '0_0'${f}) t\nWHERE rn = 1\nORDER BY Lake, Type;`,
-  "Total fish score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID < 100 AND Season = '0_0'${f}\nGROUP BY Nick ORDER BY Score DESC;`,
-  "Total competition score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID > 100 AND Season = '0_0'${f}\nGROUP BY Nick ORDER BY Score DESC;`
+  "Latest records": f => `SELECT ${COLS}\nFROM records\nWHERE 1 = 1${f}\nORDER BY Date DESC, Score DESC\nLIMIT 50;`,
+  "Best fishes of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID < 100${f}\nORDER BY Score DESC\nLIMIT 50;`,
+  "Best competition scores of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID > 100${f}\nORDER BY Score DESC\nLIMIT 50;`,
+  "All team records": f => `SELECT Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn\n      FROM records r WHERE 1 = 1${f}) t\nWHERE rn = 1\nORDER BY Lake, Type;`,
+  "Total fish score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID < 100${f}\nGROUP BY Nick ORDER BY Score DESC;`,
+  "Total competition score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID > 100${f}\nGROUP BY Nick ORDER BY Score DESC;`
 };
 
 const NAME_COLORS = {
@@ -152,6 +153,7 @@ const NAME_COLORS = {
   "pumpkin": "#FF7518",
   "exksa": "#7ba63f",
   "kuhasalaliitto": "#6495ED"
+  "ademan": "#40E0D0"
 };
 
 // Lower bound inclusive; first match from the top wins.
@@ -164,7 +166,7 @@ const SCORE_TIERS = [
   [2,   "#2471A3"],
   [1,   "#27AE60"],
   [0.3, "#C5CAD3"],
-  [-Infinity, "#565c68"]
+  [0, "#565c68"]
 ];
 const scoreColor = v => SCORE_TIERS.find(([min]) => v >= min)[1];
 
@@ -175,13 +177,13 @@ const out = document.getElementById("out");
 const runBtn = document.getElementById("run");
 let db;
 
-const FILTERS = { Nick: "players", Lake: "lakes", Type: "types" };
+const FILTERS = { Nick: "nicknames", Lake: "lakes", Type: "types", Season: "seasons" };
 const fsel = Object.fromEntries(Object.keys(FILTERS).map(c => [c, document.getElementById("f-" + c)]));
 let last = null, sort = { col: -1, dir: "asc" };
 
 for (const name of Object.keys(PRESETS)) sel.add(new Option(name));
 const esc = v => v.replace(/'/g, "''");
-const filt = () => Object.keys(FILTERS).map(c => fsel[c].value ? ` AND ${c} = '${esc(fsel[c].value)}'` : "").join("");
+const filt = () => Object.keys(FILTERS).map(c => (fsel[c].value || c === "Season") ? ` AND ${c} = '${esc(fsel[c].value || "0_0")}'` : "").join("");
 function refresh() { box.value = PRESETS[sel.value](filt()); run(); }
 sel.onchange = refresh;
 Object.values(fsel).forEach(el => el.onchange = refresh);
@@ -270,9 +272,15 @@ function run() {
 
 function fillFilters() {
   for (const [c, label] of Object.entries(FILTERS)) {
-    const res = db.exec(`SELECT DISTINCT ${c} FROM records WHERE Season = '0_0' AND ${c} IS NOT NULL ORDER BY ${c}`);
-    fsel[c].add(new Option("All " + label, ""));
-    (res[0]?.values || []).forEach(([v]) => fsel[c].add(new Option(v, v)));
+    const res = db.exec(`SELECT DISTINCT ${c} FROM records WHERE ${c} IS NOT NULL ORDER BY ${c}`);
+    const vals = (res[0]?.values || []).map(r => r[0]);
+    if (c === "Season") {
+      vals.forEach(v => fsel[c].add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v)));
+      fsel[c].value = "0_0";
+    } else {
+      fsel[c].add(new Option("All " + label, ""));
+      vals.forEach(v => fsel[c].add(new Option(v, v)));
+    }
   }
 }
 
