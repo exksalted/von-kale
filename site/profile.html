@@ -96,15 +96,22 @@ function group(rows, keyIdx) {
   return [...m].sort((a, b) => b[1].s - a[1].s);
 }
 
+const addSeasons = (sel, vals) => {
+  sel.add(new Option("All time (0_0)", "0_0"));
+  sel.add(new Option("All seasonal records", "seasons"));
+  vals.filter(v => v !== "0_0").forEach(v => sel.add(new Option("Season " + v, v)));
+};
+
 function render() {
   const season = seasonSel.value, nick = nickSel.value;
   history.replaceState(null, "", `?nick=${encodeURIComponent(nick)}&season=${encodeURIComponent(season)}`);
-  const mine = q("SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM records WHERE Season = ? AND Nick = ? ORDER BY Score DESC", [season, nick]);
+  const seasonal = season === "seasons", sc = seasonal ? "Season <> '0_0'" : "Season = ?", seasonP = seasonal ? [] : [season];
+  const mine = q(`SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM records WHERE ${sc} AND Nick = ? ORDER BY Score DESC`, [...seasonP, nick]);
   const team = q(`SELECT Nick, SUM(CASE WHEN Fish_ID < 100 THEN Score END), SUM(CASE WHEN Fish_ID > 100 THEN Score END)
-                  FROM records WHERE Season = ? GROUP BY Nick`, [season]);
+                  FROM records WHERE ${sc} GROUP BY Nick`, seasonP);
   const heldRows = q(`SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM (
-    SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake_ID, Fish_ID ORDER BY Score DESC) rn FROM records r WHERE Season = ?)
-    WHERE rn = 1 AND Nick = ? ORDER BY Score DESC`, [season, nick]);
+    SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake_ID, Fish_ID ORDER BY Score DESC) rn FROM records r WHERE ${sc})
+    WHERE rn = 1 AND Nick = ? ORDER BY Score DESC`, [...seasonP, nick]);
   const fish = mine.filter(r => r[7] < 100), comp = mine.filter(r => r[7] > 100);
   const me = team.find(t => t[0] === nick);
   const rank = i => `#${1 + team.filter(t => t[0] !== nick && (t[i] || 0) > (me?.[i] || 0)).length} of ${team.length} in team`;
@@ -135,8 +142,8 @@ function render() {
   // By lake: fish and competition sums side by side
   const lakes = new Map();
   for (const r of mine) { const g = lakes.get(r[1]) || [0, 0, 0]; g[r[7] > 100 ? 1 : 0] += r[6] || 0; g[2]++; lakes.set(r[1], g); }
-  $("p-lakes").replaceChildren(table(["Lake", "Fish score", "Competition score", "Records"],
-    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), String(g[2])]), [1, 2, 3]));
+  $("p-lakes").replaceChildren(table(["Lake", "Fish score", "Competition score", "Total score"],
+    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), f2(g[0] + g[1])]), [1, 2, 3]));
 
   // By species / competition type
   const sp = rows => table(["Type", "Records", "Total score", "Best score", "Heaviest"],
@@ -156,8 +163,7 @@ function showTab(t) {
     TABS.forEach(([id, label]) => { const b = el("button", "tab", label); b.dataset.t = id; b.onclick = () => showTab(id); $("tabs").append(b); });
     const nicks = q("SELECT DISTINCT Nick FROM records WHERE Nick IS NOT NULL ORDER BY Nick").map(r => r[0]);
     nicks.forEach(n => nickSel.add(new Option(n, n)));
-    q("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL ORDER BY Season")
-      .forEach(([v]) => seasonSel.add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v)));
+    addSeasons(seasonSel, q("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL ORDER BY Season").map(r => r[0]));
     const p = new URLSearchParams(location.search);
     seasonSel.value = [...seasonSel.options].some(o => o.value === p.get("season")) ? p.get("season") : "0_0";
     const top = q("SELECT Nick FROM records WHERE Season = '0_0' GROUP BY Nick ORDER BY SUM(Score) DESC LIMIT 1")[0]?.[0];
