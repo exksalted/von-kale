@@ -9,7 +9,7 @@
 </head>
 <body>
 <main>
-<nav class="nav"><a href="index.html" class="on">Records</a><a href="matrix.html">Lake matrix</a></nav>
+<nav class="nav"><a href="index.html" class="on">Records</a><a href="matrix.html">Records matrix</a></nav>
 <h1>Team Von-Kale records</h1>
 <section class="panel">
   <div class="controls">
@@ -138,7 +138,7 @@ function fillFilters() {
     if (c === "Season") {
       fsel[c].add(new Option(seasonLabel("0_0"), "0_0"));
       fsel[c].add(new Option("All seasonal records", "seasons"));
-      vals.filter(v => v !== "0_0").forEach(v => fsel[c].add(new Option(seasonLabel(v), v)));
+      sortSeasons(vals).filter(v => v !== "0_0").forEach(v => fsel[c].add(new Option(seasonLabel(v), v)));
       fsel[c].value = "0_0";
     } else {
       fsel[c].add(new Option("All " + label, ""));
