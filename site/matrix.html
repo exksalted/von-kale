@@ -67,7 +67,7 @@ function draw() {
   try {
     db = await loadDb();
     for (const [v] of db.exec("SELECT DISTINCT Season FROM records WHERE Season IS NOT NULL ORDER BY Season")[0]?.values || [])
-      seasonSel.add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v));
+      seasonSel.add(new Option(seasonLabel(v), v));
     seasonSel.value = "0_0";
     lakeSel.add(new Option("All lakes", ""));
     for (const [id, name] of db.exec("SELECT DISTINCT Lake_ID, Lake FROM records WHERE Lake_ID IS NOT NULL ORDER BY Lake_ID")[0]?.values || [])
