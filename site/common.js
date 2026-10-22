@@ -2,7 +2,8 @@ const NAME_COLORS = {
   "liilu:3": "#a30465",
   "pumpkin": "#FF7518",
   "exksa": "#7ba63f",
-  "kuhasalaliitto": "#6495ED"
+  "kuhasalaliitto": "#6495ED",
+  "ademan": "#40E0D0"
 };
 
 // Lower bound inclusive; first match from the top wins.
