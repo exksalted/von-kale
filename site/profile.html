@@ -97,9 +97,9 @@ function group(rows, keyIdx) {
 }
 
 const addSeasons = (sel, vals) => {
-  sel.add(new Option("All time (0_0)", "0_0"));
+  sel.add(new Option(seasonLabel("0_0"), "0_0"));
   sel.add(new Option("All seasonal records", "seasons"));
-  vals.filter(v => v !== "0_0").forEach(v => sel.add(new Option("Season " + v, v)));
+  vals.filter(v => v !== "0_0").forEach(v => sel.add(new Option(seasonLabel(v), v)));
 };
 
 function render() {
@@ -146,8 +146,8 @@ function render() {
     [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), scoreEl(g[0] + g[1])]), [1, 2, 3]));
 
   // By species / competition type
-  const sp = rows => table(["Type", "Records", "Total score", "Best score", "Heaviest"],
-    group(rows, 2).map(([t, g]) => [t, String(g.n), f2(g.s), g.best == null ? "\u2013" : scoreEl(g.best), g.w == null ? "\u2013" : g.w + " g"]), [1, 2, 3, 4]);
+  const sp = rows => table(["Type", "Heaviest", "Best score", "Total score"],
+    group(rows, 2).map(([t, g]) => [t, g.w == null ? "\u2013" : g.w + " g", g.best == null ? "\u2013" : scoreEl(g.best), scoreEl(g.s)]), [1, 2, 3]);
   $("p-species").replaceChildren(el("h3", "", "Fish species"), sp(fish), el("h3", "", "Competition types"), sp(comp));
 }
 
