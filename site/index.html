@@ -55,7 +55,11 @@ let last = null, sort = { col: -1, dir: "asc" };
 
 for (const name of Object.keys(PRESETS)) sel.add(new Option(name));
 const esc = v => v.replace(/'/g, "''");
-const filt = () => Object.keys(FILTERS).map(c => (fsel[c].value || c === "Season") ? ` AND ${c} = '${esc(fsel[c].value || "0_0")}'` : "").join("");
+const filt = () => Object.keys(FILTERS).map(c => {
+  const v = fsel[c].value;
+  if (c === "Season") return v === "seasons" ? " AND Season <> '0_0'" : ` AND Season = '${esc(v || "0_0")}'`;
+  return v ? ` AND ${c} = '${esc(v)}'` : "";
+}).join("");
 function refresh() { box.value = PRESETS[sel.value](filt()); run(); }
 sel.onchange = refresh;
 Object.values(fsel).forEach(el => el.onchange = refresh);
@@ -132,7 +136,9 @@ function fillFilters() {
     const res = db.exec(`SELECT DISTINCT ${c} FROM records WHERE ${c} IS NOT NULL ORDER BY ${c}`);
     const vals = (res[0]?.values || []).map(r => r[0]);
     if (c === "Season") {
-      vals.forEach(v => fsel[c].add(new Option(v === "0_0" ? "All time (0_0)" : "Season " + v, v)));
+      fsel[c].add(new Option("All time (0_0)", "0_0"));
+      fsel[c].add(new Option("All seasonal records", "seasons"));
+      vals.filter(v => v !== "0_0").forEach(v => fsel[c].add(new Option("Season " + v, v)));
       fsel[c].value = "0_0";
     } else {
       fsel[c].add(new Option("All " + label, ""));
