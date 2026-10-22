@@ -13,6 +13,10 @@ on:
         description: "Season code (empty = 0,0)"
         type: string
         default: ""
+      skip_totals:
+        description: "Skip totals.py; run records.py on top of the DB from the latest release"
+        type: boolean
+        default: false
       deploy_only:
         description: "Skip scraping; redeploy site using the DB from the latest release"
         type: boolean
@@ -55,17 +59,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           DEPLOY_ONLY: ${{ inputs.deploy_only }}
+          SKIP_TOTALS: ${{ inputs.skip_totals }}
         run: |
           if gh release view db-latest >/dev/null 2>&1; then
             gh release download db-latest --pattern pp2_00.db --clobber
-          elif [ "$DEPLOY_ONLY" = "true" ]; then
-            echo "deploy_only set but no db-latest release exists"; exit 1
+          elif [ "$DEPLOY_ONLY" = "true" ] || [ "$SKIP_TOTALS" = "true" ]; then
+            echo "deploy_only/skip_totals set but no db-latest release exists"; exit 1
           else
             echo "First run: no previous DB, starting fresh"
           fi
 
       - run: python totals.py
-        if: ${{ !inputs.deploy_only }}
+        if: ${{ !inputs.deploy_only && !inputs.skip_totals }}
       - run: python records.py
         if: ${{ !inputs.deploy_only }}
 
