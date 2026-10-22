@@ -2,7 +2,7 @@ import os
 
 # Workflow inputs arrive as env vars; empty/missing -> defaults
 list_value = os.environ.get("SEASON", "").strip() or "0,0"
-NICKS = [n.strip() for n in os.environ.get("NICKS", "").split(",") if n.strip()] or ["Exksa", "Kuhasalaliitto", "Pumpkin", "Liilu:3"]
+NICKS = [n.strip() for n in os.environ.get("NICKS", "").split(",") if n.strip()] or ["Exksa", "Kuhasalaliitto", "Pumpkin", "Liilu:3", "ademan"]
 
 # Map each lake (1-46) to its naturally present fish IDs.
 lake_specific_fishes = {
