@@ -136,9 +136,9 @@ function fillFilters() {
     const res = db.exec(`SELECT DISTINCT ${c} FROM records WHERE ${c} IS NOT NULL ORDER BY ${c}`);
     const vals = (res[0]?.values || []).map(r => r[0]);
     if (c === "Season") {
-      fsel[c].add(new Option("All time (0_0)", "0_0"));
+      fsel[c].add(new Option(seasonLabel("0_0"), "0_0"));
       fsel[c].add(new Option("All seasonal records", "seasons"));
-      vals.filter(v => v !== "0_0").forEach(v => fsel[c].add(new Option("Season " + v, v)));
+      vals.filter(v => v !== "0_0").forEach(v => fsel[c].add(new Option(seasonLabel(v), v)));
       fsel[c].value = "0_0";
     } else {
       fsel[c].add(new Option("All " + label, ""));
