@@ -9,12 +9,12 @@ const NAME_COLORS = {
 const SCORE_TIERS = [
   [100, "#DC2367"],
   [50,  "#E03030"],
-  [25,  "#D35400"],
-  [10,   "#F1C40F"],
-  [5,   "#7D3C98"],
-  [3,   "#2471A3"],
-  [2,   "#27AE60"],
-  [1, "#C5CAD3"],
+  [10,  "#D35400"],
+  [5,   "#F1C40F"],
+  [3,   "#7D3C98"],
+  [2,   "#2471A3"],
+  [1,   "#27AE60"],
+  [0.3, "#C5CAD3"],
   [-Infinity, "#565c68"]
 ];
 const scoreColor = v => (SCORE_TIERS.find(t => v >= t[0]) || SCORE_TIERS[SCORE_TIERS.length - 1])[1];
@@ -49,4 +49,13 @@ async function loadDb() {
   const resp = await fetch("pp2_00.db");
   if (!resp.ok) throw new Error(`DB download failed (${resp.status})`);
   return new SQL.Database(new Uint8Array(await resp.arrayBuffer()));
+}
+
+// Front-end names for season codes: 0_0 = all time, 1_N = the season starting in 2008+N
+function seasonLabel(code) {
+  if (code === "0_0") return "All time";
+  const m = /^1_(\d+)$/.exec(code);
+  if (!m) return "Season " + code;
+  const y = 2008 + Number(m[1]);
+  return `Season ${y}-${String(y + 1).slice(2)}`;
 }
