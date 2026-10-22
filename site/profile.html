@@ -143,7 +143,7 @@ function render() {
   const lakes = new Map();
   for (const r of mine) { const g = lakes.get(r[1]) || [0, 0, 0]; g[r[7] > 100 ? 1 : 0] += r[6] || 0; g[2]++; lakes.set(r[1], g); }
   $("p-lakes").replaceChildren(table(["Lake", "Fish score", "Competition score", "Total score"],
-    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), f2(g[0] + g[1])]), [1, 2, 3]));
+    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), scoreEl(g[0] + g[1])]), [1, 2, 3]));
 
   // By species / competition type
   const sp = rows => table(["Type", "Records", "Total score", "Best score", "Heaviest"],
