@@ -182,7 +182,7 @@ function render(res, ms) {
       if (columns[i] === "Score" && typeof v === "number") {
         const span = document.createElement("span");
         span.className = "score";
-        span.textContent = v;
+        span.textContent = v.toFixed(2);
         span.style.setProperty("--c", scoreColor(v));
         td.replaceChildren(span);
       }
