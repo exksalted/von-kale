@@ -19,13 +19,14 @@
 <div class="pane" id="p-records" hidden></div>
 <div class="pane" id="p-lakes" hidden></div>
 <div class="pane" id="p-species" hidden></div>
+<div class="pane" id="p-team" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
 <script src="common.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const nickSel = $("nick"), seasonSel = $("season"), status = $("status");
-const TABS = [["overview", "Overview"], ["records", "All records"], ["lakes", "By lake"], ["species", "By species"]];
+const TABS = [["overview", "Overview"], ["records", "All records"], ["lakes", "By lake"], ["species", "By species"], ["team", "Team records"]];
 let db, tab = "overview";
 
 const q = (sql, p) => db.exec(sql, p)[0]?.values || [];
@@ -33,13 +34,34 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const f2 = v => (v == null ? "\u2013" : v.toFixed(2));
 const sum = a => a.reduce((t, r) => t + (r[6] || 0), 0);   // r[6] = Score
 
+const sortKey = c => {
+  const t = c instanceof Node ? c.textContent : String(c);
+  if (t === "\u2013") return null;
+  return /^-?\d+(\.\d+)?(?: g| \/ .*)?$/.test(t) ? parseFloat(t) : t;
+};
+
 function table(heads, rows, num = []) {
   const wrap = el("div", "wrap");
   if (!rows.length) { wrap.append(el("div", "empty", "Nothing here yet.")); return wrap; }
-  const t = el("table"), hr = t.createTHead().insertRow();
-  heads.forEach((h, i) => hr.append(el("th", num.includes(i) ? "num" : "", h)));
-  const tb = t.createTBody();
-  rows.forEach(r => { const tr = tb.insertRow(); r.forEach((c, i) => { const td = tr.insertCell(); td.append(c); if (num.includes(i)) td.className = "num"; }); });
+  let col = -1, dir = 1;
+  const t = el("table"), hr = t.createTHead().insertRow(), tb = t.createTBody(), ths = [];
+  const fill = () => {
+    const rs = col < 0 ? rows : [...rows].sort((a, b) => {
+      const x = sortKey(a[col]), y = sortKey(b[col]);
+      if (x === null) return 1;
+      if (y === null) return -1;
+      return (x < y ? -1 : x > y ? 1 : 0) * dir;
+    });
+    tb.replaceChildren();
+    rs.forEach(r => { const tr = tb.insertRow(); r.forEach((c, i) => { const td = tr.insertCell(); td.append(c); if (num.includes(i)) td.className = "num"; }); });
+    ths.forEach((th, i) => { if (i === col) th.dataset.dir = dir > 0 ? "asc" : "desc"; else delete th.dataset.dir; });
+  };
+  heads.forEach((h, i) => {
+    const th = el("th", "sortable" + (num.includes(i) ? " num" : ""), h);
+    th.onclick = () => { if (col !== i) { col = i; dir = 1; } else if (dir === 1) dir = -1; else col = -1; fill(); };
+    ths.push(th); hr.append(th);
+  });
+  fill();
   wrap.append(t);
   return wrap;
 }
@@ -48,6 +70,19 @@ function table(heads, rows, num = []) {
 const recRow = r => [r[0] || "", r[1], r[2], r[3] == null ? "\u2013" : r[3] + " g",
   r[4] == null ? "\u2013" : `${r[4]} / ${r[5] ?? "?"}`, r[6] == null ? "\u2013" : scoreEl(r[6])];
 const REC_HEADS = ["Date", "Lake", "Type", "Weight", "Rank", "Score"];
+
+function kindPane(rows) {
+  const box = el("div"), holder = el("div"), kind = el("select");
+  kind.style.cssText = "width:auto;margin-top:.25rem";
+  ["All", "Fish", "Competitions"].forEach(k => kind.add(new Option(k)));
+  const draw = () => {
+    const rs = kind.value === "Fish" ? rows.filter(r => r[7] < 100) : kind.value === "Competitions" ? rows.filter(r => r[7] > 100) : rows;
+    holder.replaceChildren(table(REC_HEADS, rs.map(recRow), [3, 4, 5]));
+  };
+  kind.onchange = draw; draw();
+  box.append(kind, holder);
+  return box;
+}
 
 function group(rows, keyIdx) {
   const m = new Map();
@@ -67,8 +102,9 @@ function render() {
   const mine = q("SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM records WHERE Season = ? AND Nick = ? ORDER BY Score DESC", [season, nick]);
   const team = q(`SELECT Nick, SUM(CASE WHEN Fish_ID < 100 THEN Score END), SUM(CASE WHEN Fish_ID > 100 THEN Score END)
                   FROM records WHERE Season = ? GROUP BY Nick`, [season]);
-  const held = new Map(q(`SELECT Nick, COUNT(*) FROM (SELECT Nick, ROW_NUMBER() OVER (PARTITION BY Lake_ID, Fish_ID ORDER BY Score DESC) rn
-                          FROM records WHERE Season = ?) WHERE rn = 1 GROUP BY Nick`, [season]));
+  const heldRows = q(`SELECT Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID FROM (
+    SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake_ID, Fish_ID ORDER BY Score DESC) rn FROM records r WHERE Season = ?)
+    WHERE rn = 1 AND Nick = ? ORDER BY Score DESC`, [season, nick]);
   const fish = mine.filter(r => r[7] < 100), comp = mine.filter(r => r[7] > 100);
   const me = team.find(t => t[0] === nick);
   const rank = i => `#${1 + team.filter(t => t[0] !== nick && (t[i] || 0) > (me?.[i] || 0)).length} of ${team.length} in team`;
@@ -80,31 +116,31 @@ function render() {
 
   // Overview
   const cards = el("div", "cards");
-  [["Fish score", f2(sum(fish)), rank(1)], ["Competition score", f2(sum(comp)), rank(2)],
+  const big = v => { const b = scoreEl(v); b.classList.add("big"); return b; };
+  [["Fish score", big(sum(fish)), rank(1)], ["Competition score", big(sum(comp)), rank(2)],
    ["Records", mine.length, `${fish.length} fish \u00B7 ${comp.length} competition`],
-   ["Team records held", held.get(nick) || 0, "best in team, per lake and type"]].forEach(([k, v, sub]) => {
-    const c = el("div", "stat"); c.append(el("div", "k", k), el("div", "v", v), el("div", "sub", sub)); cards.append(c);
+   ["Team records held", heldRows.length, "best in team \u00B7 click to view", "team"]].forEach(([k, v, sub, go]) => {
+    const c = el("div", "stat"), val = el("div", "v");
+    val.append(v);
+    c.append(el("div", "k", k), val, el("div", "sub", sub));
+    if (go) { c.classList.add("link"); c.onclick = () => showTab(go); }
+    cards.append(c);
   });
   $("p-overview").replaceChildren(cards, el("h3", "", "Best fish"), table(REC_HEADS, fish.slice(0, 5).map(recRow), [3, 4, 5]),
     el("h3", "", "Best competitions"), table(REC_HEADS, comp.slice(0, 5).map(recRow), [3, 4, 5]));
 
-  // All records
-  const kind = el("select"); kind.style.cssText = "width:auto;margin-top:.25rem";
-  ["All", "Fish", "Competitions"].forEach(k => kind.add(new Option(k)));
-  const draw = () => { const rs = kind.value === "Fish" ? fish : kind.value === "Competitions" ? comp : mine;
-    holder.replaceChildren(table(REC_HEADS, rs.map(recRow), [3, 4, 5])); };
-  const holder = el("div"); kind.onchange = draw; draw();
-  $("p-records").replaceChildren(kind, holder);
+  $("p-records").replaceChildren(kindPane(mine));
+  $("p-team").replaceChildren(kindPane(heldRows));
 
   // By lake: fish and competition sums side by side
   const lakes = new Map();
   for (const r of mine) { const g = lakes.get(r[1]) || [0, 0, 0]; g[r[7] > 100 ? 1 : 0] += r[6] || 0; g[2]++; lakes.set(r[1], g); }
   $("p-lakes").replaceChildren(table(["Lake", "Fish score", "Competition score", "Records"],
-    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, f2(g[0]), f2(g[1]), String(g[2])]), [1, 2, 3]));
+    [...lakes].sort((a, b) => b[1][0] + b[1][1] - a[1][0] - a[1][1]).map(([l, g]) => [l, scoreEl(g[0]), scoreEl(g[1]), String(g[2])]), [1, 2, 3]));
 
   // By species / competition type
   const sp = rows => table(["Type", "Records", "Total score", "Best score", "Heaviest"],
-    group(rows, 2).map(([t, g]) => [t, String(g.n), f2(g.s), f2(g.best), g.w == null ? "\u2013" : g.w + " g"]), [1, 2, 3, 4]);
+    group(rows, 2).map(([t, g]) => [t, String(g.n), f2(g.s), g.best == null ? "\u2013" : scoreEl(g.best), g.w == null ? "\u2013" : g.w + " g"]), [1, 2, 3, 4]);
   $("p-species").replaceChildren(el("h3", "", "Fish species"), sp(fish), el("h3", "", "Competition types"), sp(comp));
 }
 
