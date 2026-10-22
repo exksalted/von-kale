@@ -9,12 +9,12 @@ const NAME_COLORS = {
 const SCORE_TIERS = [
   [100, "#DC2367"],
   [50,  "#E03030"],
-  [10,  "#D35400"],
-  [5,   "#F1C40F"],
-  [3,   "#7D3C98"],
-  [2,   "#2471A3"],
-  [1,   "#27AE60"],
-  [0.3, "#C5CAD3"],
+  [25,  "#D35400"],
+  [10,   "#F1C40F"],
+  [5,   "#7D3C98"],
+  [3,   "#2471A3"],
+  [2,   "#27AE60"],
+  [1, "#C5CAD3"],
   [-Infinity, "#565c68"]
 ];
 const scoreColor = v => (SCORE_TIERS.find(t => v >= t[0]) || SCORE_TIERS[SCORE_TIERS.length - 1])[1];
