@@ -1,5 +1,5 @@
 import {
-  $, el, q, start, setStatus, renderNav, fillSeasons, holdersSql, FISH_SQL, COMP_SQL, isFish, isComp,
+  $, el, q, start, setStatus, renderNav, fillSeasons, seasonLabel, holdersSql, FISH_SQL, COMP_SQL, isFish, isComp,
   urlParams, syncUrl, pick, table, cell, scoreEl, scoreCell, weightCell, nameEl
 } from "./common.js";
 
@@ -10,22 +10,27 @@ const kindSel = $("kind");
 const TABS = [["overview", "Overview"], ["records", "All records"], ["lakes", "By lake"], ["species", "By species"], ["team", "Team records"]];
 let db;
 
-const REC_COLS = "Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID";
-const REC_HEADS = ["Date", "Lake", "Type", "Weight", "Rank", "Score"];
-const REC_NUM = [3, 4, 5];
+const REC_COLS = "Date, Lake, Type, Weight, Rank, Out_Of, Score, Fish_ID, Season";
+let showSeason = false;  // "All seasonal records": the same lake/type appears once per season, so show the season
 
-const toRec = ([date, lake, type, weight, rank, outOf, score, fishId]) =>
-  ({ date, lake, type, weight, rank, outOf, score, fishId });
+const toRec = ([date, lake, type, weight, rank, outOf, score, fishId, season]) =>
+  ({ date, lake, type, weight, rank, outOf, score, fishId, season });
 
-const recRow = r => [
-  r.date,
-  r.lake,
-  r.type,
-  weightCell(r.weight),
-  r.rank == null ? null : cell(r.rank, `${r.rank} / ${r.outOf ?? "?"}`),
-  scoreCell(r.score)
-];
-const recTable = rs => table(REC_HEADS, rs.map(recRow), { num: REC_NUM });
+const recRow = r => {
+  const row = [
+    r.date,
+    r.lake,
+    r.type,
+    weightCell(r.weight),
+    r.rank == null ? null : cell(r.rank, `${r.rank} / ${r.outOf ?? "?"}`),
+    scoreCell(r.score)
+  ];
+  if (showSeason) row.splice(1, 0, seasonLabel(r.season));
+  return row;
+};
+const recTable = rs => showSeason
+  ? table(["Date", "Season", "Lake", "Type", "Weight", "Rank", "Score"], rs.map(recRow), { num: [4, 5, 6] })
+  : table(["Date", "Lake", "Type", "Weight", "Rank", "Score"], rs.map(recRow), { num: [3, 4, 5] });
 const sum = rs => rs.reduce((t, r) => t + (r.score || 0), 0);
 
 // One All/Fish/Competitions filter (in the tab row) drives both the "All records" and "Team records" panes.
@@ -63,6 +68,7 @@ function render() {
   syncUrl({ nick, season });
 
   const seasonal = season === "seasons";
+  showSeason = seasonal;
   const sc = seasonal ? "Season <> '0_0'" : "Season = ?";
   const sp = seasonal ? [] : [season];
 
