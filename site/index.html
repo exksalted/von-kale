@@ -4,163 +4,38 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Team Von-Kale records</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
 <main>
-<nav class="nav"><a href="index.html" class="on">Records</a><a href="matrix.html">Records matrix</a></nav>
-<h1>Team Von-Kale records</h1>
-<section class="panel">
-  <div class="controls">
-    <select id="presets"></select>
-    <select id="f-Nick"></select>
-    <select id="f-Lake"></select>
-    <select id="f-Type"></select>
-    <select id="f-Season"></select>
-  </div>
-  <details>
-    <summary>Advanced: edit SQL</summary>
-    <textarea id="sql" spellcheck="false"></textarea>
-    <div class="bar"><button id="run" disabled>Run</button><span style="color:var(--muted);font-size:13px">Ctrl+Enter runs the query</span></div>
-  </details>
-  <div class="bar"><div id="status">Loading database…</div></div>
-</section>
-<div class="wrap" id="out"></div>
+  <nav class="nav" id="nav" aria-label="Main"></nav>
+  <h1>Team Von-Kale records</h1>
+  <section class="panel">
+    <div class="controls">
+      <select id="presets" aria-label="Preset query"></select>
+      <select id="f-Nick" aria-label="Player"></select>
+      <select id="f-Lake" aria-label="Lake"></select>
+      <select id="f-Type" aria-label="Type"></select>
+      <select id="f-Season" aria-label="Season"></select>
+    </div>
+    <details>
+      <summary>Advanced: edit SQL</summary>
+      <textarea id="sql" spellcheck="false" aria-label="SQL query"></textarea>
+      <div class="bar">
+        <button class="btn" id="run" type="button" disabled>Run</button>
+        <span class="hint">Ctrl/⌘ + Enter runs the query</span>
+      </div>
+    </details>
+    <div class="bar"><div id="status" role="status">Loading database…</div></div>
+  </section>
+  <div id="out"></div>
 </main>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"></script>
-<script src="common.js"></script>
-<script>
-const COLS = "Date, Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score";
-const PRESETS = {
-  "Latest records": f => `SELECT ${COLS}\nFROM records\nWHERE 1 = 1${f}\nORDER BY Date DESC, Score DESC\nLIMIT 50;`,
-  "Best fishes of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID < 100${f}\nORDER BY Score DESC\nLIMIT 50;`,
-  "Best competition scores of all time": f => `SELECT ${COLS}\nFROM records\nWHERE Fish_ID > 100${f}\nORDER BY Score DESC\nLIMIT 50;`,
-  "All team records": f => `SELECT Nick, Lake, Type, Weight || ' g' AS Weight, Rank, Out_Of, ROUND(Score, 2) AS Score, Date\nFROM (SELECT r.*, ROW_NUMBER() OVER (PARTITION BY Lake, Type ORDER BY Score DESC) AS rn\n      FROM records r WHERE 1 = 1${f}) t\nWHERE rn = 1\nORDER BY Lake, Type;`,
-  "Total fish score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID < 100${f}\nGROUP BY Nick ORDER BY Score DESC;`,
-  "Total competition score": f => `SELECT Nick, ROUND(SUM(Score), 2) AS Score FROM records\nWHERE Fish_ID > 100${f}\nGROUP BY Nick ORDER BY Score DESC;`
-};
-
-const sel = document.getElementById("presets");
-const box = document.getElementById("sql");
-const status = document.getElementById("status");
-const out = document.getElementById("out");
-const runBtn = document.getElementById("run");
-let db;
-
-const FILTERS = { Nick: "nicknames", Lake: "lakes", Type: "types", Season: "seasons" };
-const fsel = Object.fromEntries(Object.keys(FILTERS).map(c => [c, document.getElementById("f-" + c)]));
-let last = null, sort = { col: -1, dir: "asc" };
-
-for (const name of Object.keys(PRESETS)) sel.add(new Option(name));
-const esc = v => v.replace(/'/g, "''");
-const filt = () => Object.keys(FILTERS).map(c => {
-  const v = fsel[c].value;
-  if (c === "Season") return v === "seasons" ? " AND Season <> '0_0'" : ` AND Season = '${esc(v || "0_0")}'`;
-  return v ? ` AND ${c} = '${esc(v)}'` : "";
-}).join("");
-function refresh() { box.value = PRESETS[sel.value](filt()); run(); }
-sel.onchange = refresh;
-Object.values(fsel).forEach(el => el.onchange = refresh);
-
-// sortable value: numbers and "850 g" style strings compare numerically
-const key = v => {
-  if (typeof v === "number") return v;
-  const m = typeof v === "string" && v.match(/^-?\d+(\.\d+)?( g)?$/);
-  return m ? parseFloat(v) : v;
-};
-function compare(i) {
-  const d = sort.dir === "asc" ? 1 : -1;
-  return (x, y) => {
-    const a = x[i], b = y[i];
-    if (a === null) return 1;
-    if (b === null) return -1;
-    const ka = key(a), kb = key(b);
-    return (ka < kb ? -1 : ka > kb ? 1 : 0) * d;
-  };
-}
-
-function render(ms) {
-  out.replaceChildren();
-  if (!last) { status.className = "ok"; status.textContent = "Query OK, no rows."; return; }
-  const { columns, values } = last;
-  const rows = sort.col >= 0 ? [...values].sort(compare(sort.col)) : values;
-  const table = document.createElement("table");
-  const thead = table.createTHead().insertRow();
-  columns.forEach((c, i) => {
-    const th = document.createElement("th");
-    th.textContent = c;
-    th.className = "sortable" + (typeof values[0]?.[i] === "number" || c === "Weight" ? " num" : "");
-    if (sort.col === i) th.dataset.dir = sort.dir;
-    th.onclick = () => {
-      if (sort.col !== i) sort = { col: i, dir: "asc" };
-      else if (sort.dir === "asc") sort.dir = "desc";
-      else sort = { col: -1, dir: "asc" };
-      render(ms);
-    };
-    thead.appendChild(th);
-  });
-  const tbody = table.createTBody();
-  rows.forEach(r => {
-    const tr = tbody.insertRow();
-    r.forEach((v, i) => {
-      const td = tr.insertCell();
-      td.textContent = v === null ? "NULL" : v;
-      if (typeof v === "number" || columns[i] === "Weight") td.className = "num";
-      if (columns[i] === "Score" && typeof v === "number") td.replaceChildren(scoreEl(v));
-      if (columns[i] === "Nick" && v !== null) {
-        td.className = "nick";
-        td.replaceChildren(nameEl(v));
-      }
-    });
-  });
-  out.appendChild(table);
-  status.className = "ok";
-  status.textContent = `${values.length} rows \u00B7 ${ms} ms`;
-}
-
-function run() {
-  status.className = "";
-  try {
-    const t = performance.now();
-    const res = db.exec(box.value);
-    last = res[0] || null;
-    sort = { col: -1, dir: "asc" };
-    render(Math.round(performance.now() - t));
-  } catch (e) { console.error("run() failed:", e); status.className = "err"; status.textContent = "Query failed: " + e.message; out.replaceChildren(); }
-}
-
-function fillFilters() {
-  for (const [c, label] of Object.entries(FILTERS)) {
-    const res = db.exec(`SELECT DISTINCT ${c} FROM records WHERE ${c} IS NOT NULL ORDER BY ${c}`);
-    const vals = (res[0]?.values || []).map(r => r[0]);
-    if (c === "Season") {
-      fsel[c].add(new Option(seasonLabel("0_0"), "0_0"));
-      fsel[c].add(new Option("All seasonal records", "seasons"));
-      sortSeasons(vals).filter(v => v !== "0_0").forEach(v => fsel[c].add(new Option(seasonLabel(v), v)));
-      fsel[c].value = "0_0";
-    } else {
-      fsel[c].add(new Option("All " + label, ""));
-      vals.forEach(v => fsel[c].add(new Option(v, v)));
-    }
-  }
-}
-
-(async () => {
-  try {
-    db = await loadDb();
-    runBtn.disabled = false;
-    runBtn.onclick = run;
-    box.addEventListener("keydown", e => { if (e.ctrlKey && e.key === "Enter") run(); });
-    fillFilters();
-    refresh();
-  } catch (e) {
-    console.error("Startup failed:", e);
-    status.className = "err";
-    status.textContent = "Startup failed: " + e.message;
-  }
-})();
-</script>
+<script defer
+  src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js"
+  integrity="sha384-8D3Rsfo535FqoC1pHCCQMrNf75UgzyoG/HQm9zOzITRrz3QKzecc2E7JXKGCXoWu"
+  crossorigin="anonymous"></script>
+<script type="module" src="index.js"></script>
 </body>
 </html>

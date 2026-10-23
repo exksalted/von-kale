@@ -1,56 +1,17 @@
 import re
-import sqlite3
 import sys
 import time
 
 import requests
-from bs4 import BeautifulSoup
 
-from config import (NICKS, list_value, lake_specific_fishes,
-                    global_special_fishes, special_fish_names)
+from config import LAKE_FISHES, SEASON, SEASON_PARAM, fishes_for
+from db import connect, vacuum
+from scraper import ScrapeError, count_rows, fetch, get_token
 
-DB_PATH = "pp2_00.db"
-BASE_URL = "https://www.propilkki.fi/propilkki2/P2_records/P2_records.php"
-HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                  "(KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
-}
-FALLBACK_TOKEN = "1792154187"
-
-
-def fetch(session, params=None):
-    """GET with retries. Raises after 3 failed attempts."""
-    for attempt in range(3):
-        try:
-            r = session.get(BASE_URL, params=params, headers=HEADERS, timeout=15)
-            r.raise_for_status()
-            r.encoding = "cp1252"
-            return BeautifulSoup(r.text, "html.parser")
-        except requests.RequestException:
-            if attempt == 2:
-                raise
-            time.sleep(2 ** attempt)
-
-
-def get_token(session):
-    try:
-        soup = fetch(session)
-        iframe = soup.find("iframe", id="iframe1")
-        if iframe and iframe.get("src"):
-            m = re.search(r"[?&]t=(\d+)", iframe["src"])
-            if m:
-                return m.group(1)
-    except requests.RequestException:
-        pass
-    return FALLBACK_TOKEN
-
-
-def count_rows(soup):
-    table = soup.find("table", {"id": "myTable"})
-    if not table:
-        return 0
-    tbody = table.find("tbody")
-    return len(tbody.find_all("tr")) if tbody else len(table.find_all("tr")[1:])
+# Sanity limits for a scrape. A broken token or an error page that still answers HTTP 200
+# looks like "0 players everywhere"; these stop that from replacing good data.
+MAX_ZERO_SHARE = 0.5       # more than this share of (lake, fish) counts being 0 -> abort
+MIN_PREVIOUS_RATIO = 0.5   # new player total below this share of the stored one -> abort
 
 
 def get_total_players(session, token, lake, fish, list_val):
@@ -76,44 +37,52 @@ def get_total_players(session, token, lake, fish, list_val):
     return max_offset + count_rows(last)
 
 
-def save_to_sqlite(records, season, db_path=DB_PATH):
-    con = sqlite3.connect(db_path)
-    try:
-        with con:  # one transaction: commits on success, rolls back on error
-            con.execute("""CREATE TABLE IF NOT EXISTS totalrecords
-                (Season TEXT, Lake_ID INTEGER, Fish_ID INTEGER, Players INTEGER, Rarity REAL)""")
-            con.execute("""CREATE INDEX IF NOT EXISTS idx_tr
-                ON totalrecords(Season, Lake_ID, Fish_ID)""")
-            con.execute("DELETE FROM totalrecords WHERE Season = ?", (season,))
-            con.executemany(
-                "INSERT INTO totalrecords (Season, Lake_ID, Fish_ID, Players) VALUES (?,?,?,?)",
-                [(season, r["Lake_ID"], r["Fish_ID"], r["Players"]) for r in records],
-            )
-            con.execute("""
-                UPDATE totalrecords SET Rarity = CASE
-                  WHEN Fish_ID > 100 THEN 1.0
-                  WHEN Players = 0 THEN 0.0
-                  ELSE (SELECT CAST(MAX(tr.Players) AS REAL) FROM totalrecords tr
-                        WHERE tr.Season = totalrecords.Season
-                          AND tr.Lake_ID = totalrecords.Lake_ID) / Players
-                END
-                WHERE Season = ?""", (season,))
-    finally:
-        con.close()
+def validate_totals(records, previous_players):
+    """Raises ScrapeError if the scraped counts look broken. previous_players = stored sum (0 if none)."""
+    total = sum(r["Players"] for r in records)
+    if not records or total == 0:
+        raise ScrapeError("Every player count is 0. The token or the page layout is probably broken.")
+    zeros = sum(1 for r in records if r["Players"] == 0)
+    if zeros / len(records) > MAX_ZERO_SHARE:
+        raise ScrapeError(f"{zeros} of {len(records)} counts are 0 (limit {MAX_ZERO_SHARE:.0%}).")
+    if previous_players and total < MIN_PREVIOUS_RATIO * previous_players:
+        raise ScrapeError(f"Player total fell from {previous_players} to {total} "
+                          f"(limit: {MIN_PREVIOUS_RATIO:.0%} of the stored value).")
+
+
+def previous_total(con, season):
+    return con.execute("SELECT COALESCE(SUM(Players), 0) FROM totalrecords WHERE Season = ?",
+                       (season,)).fetchone()[0]
+
+
+def save_to_sqlite(records, season, con):
+    with con:  # one transaction: commits on success, rolls back on error
+        con.execute("DELETE FROM totalrecords WHERE Season = ?", (season,))
+        con.executemany(
+            "INSERT INTO totalrecords (Season, Lake_ID, Fish_ID, Players) VALUES (?,?,?,?)",
+            [(season, r["Lake_ID"], r["Fish_ID"], r["Players"]) for r in records],
+        )
+        con.execute("""
+            UPDATE totalrecords SET Rarity = CASE
+              WHEN Fish_ID > 100 THEN 1.0
+              WHEN Players = 0 THEN 0.0
+              ELSE (SELECT CAST(MAX(tr.Players) AS REAL) FROM totalrecords tr
+                    WHERE tr.Season = totalrecords.Season
+                      AND tr.Lake_ID = totalrecords.Lake_ID) / Players
+            END
+            WHERE Season = ?""", (season,))
 
 
 def main():
-    season = list_value.replace(",", "_")
     records, failures = [], []
 
     with requests.Session() as session:
         token = get_token(session)
-        for lake, fishes in lake_specific_fishes.items():
-            combined = list(dict.fromkeys(fishes + global_special_fishes))
+        for lake in LAKE_FISHES:
             print(f"Scanning Lake {lake}...")
-            for fish in combined:
+            for fish in fishes_for(lake):
                 try:
-                    n = get_total_players(session, token, lake, fish, list_value)
+                    n = get_total_players(session, token, lake, fish, SEASON_PARAM)
                 except requests.RequestException as e:
                     failures.append((lake, fish, str(e)))
                     print(f"  -> Fish {fish}: FAILED ({e})")
@@ -126,9 +95,19 @@ def main():
         print(f"{len(failures)} requests failed. DB left untouched.")
         sys.exit(1)
 
-    save_to_sqlite(records, season)
-    print(f"Saved {len(records)} rows for season '{season}'.")
+    con = connect()
+    try:
+        validate_totals(records, previous_total(con, SEASON))
+        save_to_sqlite(records, SEASON, con)
+        vacuum(con)
+    finally:
+        con.close()
+    print(f"Saved {len(records)} rows for season '{SEASON}'.")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ScrapeError as e:
+        print(f"FAILED: {e} DB left untouched.")
+        sys.exit(1)
