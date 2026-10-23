@@ -223,8 +223,10 @@ a.name:hover { filter: brightness(1.25); }
 .name.big { padding: .2rem 1rem; font-size: 1.25rem; }
 
 /* ---------- Records matrix ---------- */
-.lakes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(400px, 100%), 1fr)); gap: 1rem; margin-top: 1.25rem; }
-.lake { overflow: clip; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.lakes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(480px, 100%), 1fr)); gap: 1rem; margin-top: 1.25rem; }
+.lake {
+  --cols: minmax(0, 1.3fr) minmax(0, 1.2fr) 4.25rem 4.5rem 4.75rem;
+  overflow: clip; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
 .lake h2 {
   display: flex;
   justify-content: space-between;
@@ -238,8 +240,8 @@ a.name:hover { filter: brightness(1.25); }
 .lake h2 span { color: var(--muted); font-size: 12px; font-weight: 400; white-space: nowrap; }
 .rec {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) auto auto auto;
-  gap: .5rem;
+  grid-template-columns: var(--cols);
+  gap: .75rem;
   align-items: center;
   padding: .45rem .9rem;
   border-bottom: 1px solid var(--hairline);
@@ -249,6 +251,22 @@ a.name:hover { filter: brightness(1.25); }
 .rec .t { overflow-wrap: anywhere; }
 .rec:last-child { border-bottom: 0; }
 .rec:hover { background: var(--hover); }
+.rows { min-width: 29rem; }  /* below this width the card scrolls sideways instead of squeezing */
+.rec-head {
+  display: grid;
+  grid-template-columns: var(--cols);
+  gap: .75rem;
+  align-items: center;
+  padding: .5rem .9rem;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.rec-head > * { min-width: 0; }
+.rec-head .w, .rec-head .r, .rec-head .s { text-align: right; }
 .rec .w, .rec .r { text-align: right; color: var(--muted); white-space: nowrap; }
 .rec .s { text-align: right; white-space: nowrap; }
 .sep {
