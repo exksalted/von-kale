@@ -11,10 +11,10 @@ const DEFAULTS = { season: "0_0", lake: "" };
 let db;
 
 // Best record per lake and fish type (competitions are Fish_ID > 100)
-const SQL = `${holdersSql("Season = ?", "Lake_ID, Lake, Fish_ID, Type, Nick, Weight, Score, Date")}\nORDER BY Lake_ID, Fish_ID`;
+const SQL = `${holdersSql("Season = ?", "Lake_ID, Lake, Fish_ID, Type, Nick, Weight, Rank, Out_Of, Score, Date")}\nORDER BY Lake_ID, Fish_ID`;
 
-const toRec = ([lakeId, lake, fishId, type, nick, weight, score, date]) =>
-  ({ lakeId, lake, fishId, type, nick, weight, score, date });
+const toRec = ([lakeId, lake, fishId, type, nick, weight, rank, outOf, score, date]) =>
+  ({ lakeId, lake, fishId, type, nick, weight, rank, outOf, score, date });
 
 function draw() {
   grid.replaceChildren();
@@ -48,7 +48,13 @@ function draw() {
       who.append(nameEl(r.nick, { season }));
       const sc = el("div", "s");
       sc.append(scoreEl(r.score));
-      row.append(el("div", "", r.type), who, el("div", "w", r.weight == null ? "\u2013" : r.weight + " g"), sc);
+      row.append(
+        who,
+        el("div", "t", r.type),
+        el("div", "w", r.weight == null ? "\u2013" : r.weight + " g"),
+        el("div", "r", r.rank == null ? "\u2013" : `${r.rank} / ${r.outOf ?? "?"}`),
+        sc
+      );
       card.append(row);
     }
     grid.append(card);
