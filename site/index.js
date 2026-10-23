@@ -48,8 +48,14 @@ const state = () => ({
   season: fsel.Season.value
 });
 
+// Grow the textarea to fit its content so the page, not the box, scrolls.
+const fit = () => { box.style.height = "auto"; box.style.height = box.scrollHeight + 2 + "px"; };
+box.closest("details").addEventListener("toggle", fit);
+window.addEventListener("resize", fit);
+
 function refresh() {
   box.value = PRESETS[presetSel.value](filt(), filt("Nick"));
+  fit();
   dirty = false;
   selects.forEach(s => lastValue.set(s, s.value));
   syncUrl(state(), DEFAULTS);
@@ -63,7 +69,7 @@ selects.forEach(s => s.addEventListener("change", () => {
   }
   refresh();
 }));
-box.addEventListener("input", () => { dirty = true; });
+box.addEventListener("input", () => { dirty = true; fit(); });
 
 function toCell(col, v, season) {
   if (v === null) return null;
