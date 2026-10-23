@@ -1,6 +1,8 @@
 import pytest
+from helpers import load
 
-import records
+records = load("records")
+
 
 
 @pytest.mark.parametrize("raw, expected", [("1.", 1), ("12", 12), (" 3 ", 3), ("", None), (None, None), ("-", None)])
