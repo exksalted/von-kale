@@ -1,6 +1,6 @@
 import {
   $, q, start, setStatus, renderNav, fillSeasons, holdersSql, FISH_SQL, COMP_SQL,
-  urlParams, syncUrl, pick, table, cell, scoreCell, nameCell
+  urlParams, syncUrl, pick, table, cell, scoreCell, nameCell, seasonLabel
 } from "./common.js";
 
 const COLS = "Date, Nick, Lake, Type, Weight, Rank, Out_Of, Score";
@@ -11,7 +11,9 @@ const PRESETS = {
   // The Nick filter applies to the winners, not the candidates (same as "Team records held" on the profile page).
   "All team records": (f, noNick) => {
     const nick = fsel.Nick.value;
-    return `${holdersSql("1 = 1" + noNick, "Nick, Lake, Type, Weight, Rank, Out_Of, Score, Date", nick ? `Nick = '${esc(nick)}'` : "")}\nORDER BY Lake, Type;`;
+    const seasonal = fsel.Season.value === "seasons";  // one winner per season, so show which season
+    const cols = "Nick, Lake, Type, Weight, Rank, Out_Of, Score, Date" + (seasonal ? ", Season" : "");
+    return `${holdersSql("1 = 1" + noNick, cols, nick ? `Nick = '${esc(nick)}'` : "")}\nORDER BY ${seasonal ? "Season DESC, " : ""}Lake, Type;`;
   },
   "Total fish score": f => `SELECT Nick, SUM(Score) AS Score FROM records\nWHERE ${FISH_SQL}${f}\nGROUP BY Nick ORDER BY Score DESC;`,
   "Total competition score": f => `SELECT Nick, SUM(Score) AS Score FROM records\nWHERE ${COMP_SQL}${f}\nGROUP BY Nick ORDER BY Score DESC;`
@@ -76,6 +78,7 @@ function toCell(col, v, season) {
   if (col === "Nick") return nameCell(v, { season });
   if (col === "Score" && typeof v === "number") return scoreCell(v);
   if (col === "Weight" && typeof v === "number") return cell(v, v + " g");
+  if (col === "Season") return seasonLabel(v);
   return v;
 }
 
