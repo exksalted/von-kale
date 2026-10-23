@@ -1,11 +1,17 @@
 import os
+import re
 
 # Workflow inputs arrive as env vars; empty/missing -> defaults
-list_value = os.environ.get("SEASON", "").strip() or "0,0"
-NICKS = [n.strip() for n in os.environ.get("NICKS", "").split(",") if n.strip()] or ["Exksa", "Kuhasalaliitto", "Pumpkin", "Liilu:3", "ademan"]
+SEASON_PARAM = os.environ.get("SEASON", "").strip() or "0,0"   # as the site expects it, e.g. "1,18"
+if not re.fullmatch(r"\d+,\d+", SEASON_PARAM):
+    raise ValueError(f"Season must look like 0,0 (got {SEASON_PARAM!r})")
+SEASON = SEASON_PARAM.replace(",", "_")                          # as stored in the DB, e.g. "1_18"
+
+NICKS = [n.strip() for n in os.environ.get("NICKS", "").split(",") if n.strip()] or [
+    "Exksa", "Kuhasalaliitto", "Pumpkin", "Liilu:3", "ademan"]
 
 # Map each lake (1-46) to its naturally present fish IDs.
-lake_specific_fishes = {
+LAKE_FISHES = {
     1: [1, 2, 3, 4, 15, 16, 17, 18, 19, 20, 21, 22],  # Haapolahti
     2: [1, 2, 3, 12, 15, 16, 22, 26],  # Haukilahti
     3: [1, 2, 3, 5, 12, 15],  # Hossalaislammet
@@ -55,10 +61,10 @@ lake_specific_fishes = {
 }
 
 # Universal system fish IDs checked on every lake
-global_special_fishes = [110, 115, 130, 160, 190, 220]
+GLOBAL_SPECIAL_FISHES = [110, 115, 130, 160, 190, 220]
 
 # Special fish ID -> display name
-special_fish_names = {
+SPECIAL_FISH_NAMES = {
     110: "10 min",
     115: "15 min",
     130: "30 min",
@@ -66,3 +72,8 @@ special_fish_names = {
     190: "90 min",
     220: "120 min",
 }
+
+
+def fishes_for(lake):
+    """Fish IDs to scan on a lake: its own species plus the universal competition IDs."""
+    return list(dict.fromkeys(LAKE_FISHES.get(lake, []) + GLOBAL_SPECIAL_FISHES))
