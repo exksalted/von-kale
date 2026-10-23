@@ -1,0 +1,64 @@
+name: Deploy site
+
+# Builds the site from site/ plus the newest DB in the db-latest release and publishes it to GitHub Pages.
+# No scraping. Also called by update-db.yml after it uploads a fresh DB.
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download latest DB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download db-latest --pattern pp2_00.db --clobber \
+            || { echo "No db-latest release with pp2_00.db found. Run 'Update DB' first."; exit 1; }
+
+      - name: Check DB
+        run: |
+          test "$(sqlite3 pp2_00.db 'PRAGMA integrity_check')" = "ok"
+          n=$(sqlite3 pp2_00.db 'SELECT COUNT(*) FROM records')
+          [ "$n" -gt 0 ] || { echo "records table is empty"; exit 1; }
+          echo "DB OK: $n records"
+
+      - name: Build site
+        run: |
+          mkdir -p _site
+          cp -r site/. _site/
+          cp pp2_00.db _site/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
