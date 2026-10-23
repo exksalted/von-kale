@@ -8,6 +8,7 @@ const lakeSel = $("lake");
 const grid = $("grid");
 const statusEl = $("status");
 const DEFAULTS = { season: "0_0", lake: "" };
+const HEADS = [["Player", ""], ["Type", "t"], ["Weight", "w"], ["Rank", "r"], ["Score", "s"]];
 let db;
 
 // Best record per lake and fish type (competitions are Fish_ID > 100)
@@ -37,11 +38,29 @@ function draw() {
     const card = el("div", "lake");
     const h = el("h2", "", recs[0].lake);
     h.append(el("span", "", recs.length + " records"));
-    card.append(h);
+
+    const rows = el("div", "rows");
+    rows.setAttribute("role", "table");
+    rows.setAttribute("aria-label", recs[0].lake);
+    const head = el("div", "rec-head");
+    head.setAttribute("role", "row");
+    for (const [label, cls] of HEADS) {
+      const c = el("div", cls, label);
+      c.setAttribute("role", "columnheader");
+      head.append(c);
+    }
+    rows.append(head);
 
     let sepDone = false;
     for (const r of recs) {
-      if (isComp(r.fishId) && !sepDone) { card.append(el("div", "sep", "Competitions")); sepDone = true; }
+      if (isComp(r.fishId) && !sepDone) {
+        const sep = el("div", "sep"), label = el("div", "", "Competitions");
+        sep.setAttribute("role", "row");
+        label.setAttribute("role", "cell");
+        sep.append(label);
+        rows.append(sep);
+        sepDone = true;
+      }
       const row = el("div", "rec");
       row.title = r.date || "";
       const who = el("div");
@@ -55,8 +74,14 @@ function draw() {
         el("div", "r", r.rank == null ? "\u2013" : `${r.rank} / ${r.outOf ?? "?"}`),
         sc
       );
-      card.append(row);
+      row.setAttribute("role", "row");
+      [...row.children].forEach(c => c.setAttribute("role", "cell"));
+      rows.append(row);
     }
+
+    const scroller = el("div", "scroll");
+    scroller.append(rows);
+    card.append(h, scroller);
     grid.append(card);
   }
   setStatus(statusEl, `${lakes.size} lakes \u00B7 ${rows.length} records`, "ok");
