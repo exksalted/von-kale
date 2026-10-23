@@ -6,6 +6,7 @@ import {
 const nickSel = $("nick");
 const seasonSel = $("season");
 const statusEl = $("status");
+const kindSel = $("kind");
 const TABS = [["overview", "Overview"], ["records", "All records"], ["lakes", "By lake"], ["species", "By species"], ["team", "Team records"]];
 let db;
 
@@ -27,20 +28,13 @@ const recRow = r => [
 const recTable = rs => table(REC_HEADS, rs.map(recRow), { num: REC_NUM });
 const sum = rs => rs.reduce((t, r) => t + (r.score || 0), 0);
 
-function kindPane(rows, label) {
-  const box = el("div"), holder = el("div"), kind = el("select", "kind");
-  kind.setAttribute("aria-label", label);
-  ["All", "Fish", "Competitions"].forEach(k => kind.add(new Option(k)));
-  const draw = () => {
-    const rs = kind.value === "Fish" ? rows.filter(r => isFish(r.fishId))
-      : kind.value === "Competitions" ? rows.filter(r => isComp(r.fishId))
-      : rows;
-    holder.replaceChildren(recTable(rs));
-  };
-  kind.onchange = draw;
-  draw();
-  box.append(kind, holder);
-  return box;
+// One All/Fish/Competitions filter (in the tab row) drives both the "All records" and "Team records" panes.
+let mineRows = [], heldRows = [];
+const KINDS = { All: () => true, Fish: r => isFish(r.fishId), Competitions: r => isComp(r.fishId) };
+function drawKind() {
+  const keep = KINDS[kindSel.value];
+  $("p-records").replaceChildren(recTable(mineRows.filter(keep)));
+  $("p-team").replaceChildren(recTable(heldRows.filter(keep)));
 }
 
 // Groups records by a field; returns [key, { s: total score, best, w: heaviest }] sorted by total score.
@@ -58,7 +52,8 @@ function group(rows, key) {
 
 function showTab(t) {
   TABS.forEach(([id]) => { $("p-" + id).hidden = id !== t; });
-  [...$("tabs").children].forEach(b => {
+  kindSel.hidden = t !== "records" && t !== "team";
+  $("tabs").querySelectorAll("button").forEach(b => {
     if (b.dataset.t === t) b.setAttribute("aria-current", "true"); else b.removeAttribute("aria-current");
   });
 }
@@ -107,8 +102,9 @@ function render() {
     el("h3", "", "Best competitions"), recTable(comp.slice(0, 5))
   );
 
-  $("p-records").replaceChildren(kindPane(mine, "Show records of kind"));
-  $("p-team").replaceChildren(kindPane(held, "Show team records of kind"));
+  mineRows = mine;
+  heldRows = held;
+  drawKind();
 
   // By lake: fish and competition sums side by side
   const lakes = new Map();
@@ -142,8 +138,10 @@ start(statusEl, async database => {
     b.type = "button";
     b.dataset.t = id;
     b.onclick = () => showTab(id);
-    $("tabs").append(b);
+    kindSel.before(b);
   });
+  Object.keys(KINDS).forEach(k => kindSel.add(new Option(k)));
+  kindSel.onchange = drawKind;
 
   const nicks = q(db, "SELECT DISTINCT Nick FROM records WHERE Nick IS NOT NULL ORDER BY Nick").map(r => r[0]);
   nicks.forEach(n => nickSel.add(new Option(n, n)));
