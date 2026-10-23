@@ -1,11 +1,12 @@
 import pytest
 import sqlite3
 
-import records
 import scraper
 from db import connect
 from scraper import ScrapeError
-from helpers import FakeSession, board, ConnectionFailure
+from helpers import FakeSession, board, ConnectionFailure, load
+
+records = load("records")
 
 
 def row(rank, nick, lake=1, fish=1, kind="Hauki", name="Lake", date="2024-01-02", weight=900):
