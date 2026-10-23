@@ -61,13 +61,14 @@ export async function start(statusNode, init) {
   }
 }
 
-// One row per (lake, fish type): the record holder. Ties go to the earlier date, then to the nick.
+// One row per (season, lake, fish type): the record holder. Partitioning by season keeps
+// "All seasonal records" from collapsing every season into a single winner. Ties go to the earlier date, then to the nick.
 // `where` filters which records compete (may contain ? placeholders). `cols` is the outer select list.
 // `outer` filters the winners afterwards, e.g. "Nick = ?" = records held by that player.
 export const holdersSql = (where = "1 = 1", cols = "*", outer = "") => `SELECT ${cols}
 FROM (
   SELECT r.*, ROW_NUMBER() OVER (
-    PARTITION BY Lake_ID, Fish_ID
+    PARTITION BY Season, Lake_ID, Fish_ID
     ORDER BY Score DESC, Date IS NULL, Date, Nick
   ) AS rn
   FROM records r
