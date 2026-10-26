@@ -9,8 +9,12 @@ on:
         description: "Comma-separated nicks (empty = defaults in config.py)"
         type: string
         default: ""
-      season:
-        description: "Season code (empty = 0,0)"
+      seasons:
+        description: "Season codes, space-separated, e.g. '0,0 1,18' (empty = 0,0)"
+        type: string
+        default: ""
+      lakes:
+        description: "Lake IDs, space- or comma-separated, e.g. '3 12 27' (empty = all lakes)"
         type: string
         default: ""
       skip_totals:
@@ -28,20 +32,30 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 180
     env:
       NICKS: ${{ inputs.nicks }}
-      SEASON: ${{ inputs.season }}
+      SEASONS: ${{ inputs.seasons }}
+      LAKES: ${{ inputs.lakes }}
       SKIP_TOTALS: ${{ inputs.skip_totals }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate season
+      - name: Validate inputs
         run: |
-          if [ -n "$SEASON" ] && ! [[ "$SEASON" =~ ^[0-9]+,[0-9]+$ ]]; then
-            echo "Season must look like 0,0"; exit 1
+          seasons=$(printf '%s\n' $SEASONS | awk '!seen[$0]++' | paste -sd' ')
+          seasons="${seasons:-0,0}"
+          for s in $seasons; do
+            [[ "$s" =~ ^[0-9]+,[0-9]+$ ]] || { echo "Season must look like 0,0 (got '$s')"; exit 1; }
+          done
+          lakes=$(printf '%s\n' ${LAKES//,/ } | awk '!seen[$0]++' | paste -sd,)
+          if [ -n "$lakes" ] && ! [[ "$lakes" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+            echo "Lakes must be numbers separated by spaces or commas (got '$LAKES')"; exit 1
           fi
+          echo "Seasons: $seasons | Lakes: ${lakes:-all}"
+          echo "SEASONS=$seasons" >> "$GITHUB_ENV"
+          echo "LAKES=$lakes" >> "$GITHUB_ENV"
 
       - uses: actions/setup-python@v5
         with:
@@ -63,13 +77,27 @@ jobs:
       - name: Check totals exist
         if: ${{ inputs.skip_totals }}
         run: |
-          S="${SEASON:-0,0}"; S="${S//,/_}"
-          n=$(sqlite3 pp2_00.db "SELECT COUNT(*) FROM totalrecords WHERE Season='$S'" 2>/dev/null || echo 0)
-          [ "$n" -gt 0 ] || { echo "No totalrecords for season $S in the previous DB; run without skip_totals first."; exit 1; }
+          for P in $SEASONS; do
+            S="${P//,/_}"
+            if [ -n "$LAKES" ]; then
+              want=$(echo "$LAKES" | tr ',' '\n' | sort -u | wc -l)
+              n=$(sqlite3 pp2_00.db "SELECT COUNT(DISTINCT Lake_ID) FROM totalrecords WHERE Season='$S' AND Lake_ID IN ($LAKES)" 2>/dev/null || echo 0)
+            else
+              want=1
+              n=$(sqlite3 pp2_00.db "SELECT COUNT(*) FROM totalrecords WHERE Season='$S'" 2>/dev/null || echo 0)
+            fi
+            [ "$n" -ge "$want" ] || { echo "Missing totalrecords for season $S (lakes: ${LAKES:-all}) in the previous DB; run without skip_totals first."; exit 1; }
+          done
 
-      - run: python totals.py
-        if: ${{ !inputs.skip_totals }}
-      - run: python records.py
+      # Any failure stops the whole job before the upload, so a half-updated DB is never published.
+      - name: Scrape
+        run: |
+          for P in $SEASONS; do
+            echo "::group::Season $P"
+            if [ "$SKIP_TOTALS" != "true" ]; then SEASON="$P" python totals.py; fi
+            SEASON="$P" python records.py
+            echo "::endgroup::"
+          done
 
       - name: Check new DB
         run: |
