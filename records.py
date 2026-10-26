@@ -6,7 +6,7 @@ from collections import Counter
 
 import requests
 
-from config import LAKE_FISHES, NICKS, SEASON, SEASON_PARAM, SPECIAL_FISH_NAMES, fishes_for
+from config import LAKES, NICKS, SEASON, SEASON_PARAM, SPECIAL_FISH_NAMES, fishes_for, lake_filter
 from db import connect, vacuum
 from scraper import ScrapeError, fetch, get_token, table_parts, warn
 
@@ -83,7 +83,7 @@ def to_row(rec, lake, fish):
 
 def scrape_nick(session, token, nick):
     rows = []
-    for lake in LAKE_FISHES:
+    for lake in LAKES:
         if not scrape_leaderboard(session, token, nick, lake, 0):
             continue  # player not on this lake
         print(f"{nick}: lake {lake}")
@@ -138,12 +138,12 @@ def dedupe(rows):
     return list(best.values())
 
 
-def check_not_collapsed(con, season, nicks, rows):
+def check_not_collapsed(con, season, nicks, rows, lakes=None):
     """Refuse to overwrite when a configured player suddenly has far fewer records than stored."""
     found = Counter(r[1].casefold() for r in rows)
     for nick in nicks:
-        old = con.execute("SELECT COUNT(*) FROM records WHERE Season = ? AND Nick = ? COLLATE NOCASE",
-                          (season, nick)).fetchone()[0]
+        old = con.execute("SELECT COUNT(*) FROM records WHERE Season = ? AND Nick = ? COLLATE NOCASE"
+                          + lake_filter(lakes), (season, nick)).fetchone()[0]
         new = found.get(nick.casefold(), 0)
         if old and new < MIN_KEEP_RATIO * old:
             raise ScrapeError(f"{nick}: scraped {new} records but {old} are stored for season {season}.")
@@ -172,10 +172,11 @@ def check_dates(con, season):
             warn(f"{outside} rows are dated outside season {season} ({window[0]} to {window[1]}).")
 
 
-def save(season, rows, nicks, con):
-    """Replaces the stored records of the given players for the season. Returns the number saved."""
+def save(season, rows, nicks, con, lakes=None):
+    """Replaces the stored records of the given players (on the scanned lakes) for the season.
+    Returns the number saved."""
     rows = dedupe(rows)
-    check_not_collapsed(con, season, nicks, rows)
+    check_not_collapsed(con, season, nicks, rows, lakes)
     if not rows:
         print("No records found; nothing written.")
         return 0
@@ -184,8 +185,8 @@ def save(season, rows, nicks, con):
     # so a 'ademan' vs 'Ademan' mismatch can't leave duplicates behind.
     names = {n.casefold() for n in nicks} | {r[1].casefold() for r in rows}
     with con:  # single transaction
-        con.executemany("DELETE FROM records WHERE Season = ? AND Nick = ? COLLATE NOCASE",
-                        [(season, n) for n in names])
+        con.executemany("DELETE FROM records WHERE Season = ? AND Nick = ? COLLATE NOCASE"
+                        + lake_filter(lakes), [(season, n) for n in names])
         con.executemany(
             """INSERT INTO records (Season, Rank, Nick, Type, Lake, Date, Weight, Lake_ID, Fish_ID)
                VALUES (?,?,?,?,?,?,?,?,?)""",
