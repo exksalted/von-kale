@@ -36,8 +36,13 @@ const lastValue = new Map();  // select -> last accepted value, to undo a cancel
 for (const name of Object.keys(PRESETS)) presetSel.add(new Option(name));
 
 const esc = v => v.replace(/'/g, "''");
+// Pseudo-values of the Type dropdown; they filter on Fish_ID instead of matching a Type name.
+const TYPE_FISHES = "__all_fishes__";
+const TYPE_COMPS = "__all_competitions__";
 const filt = skip => Object.keys(FILTERS).filter(c => c !== skip).map(c => {
   const v = fsel[c].value;
+  if (c === "Type" && v === TYPE_FISHES) return " AND Fish_ID < 100";
+  if (c === "Type" && v === TYPE_COMPS) return " AND Fish_ID > 100";
   if (c === "Season") return v === "seasons" ? " AND Season <> '0_0'" : ` AND Season = '${esc(v || "0_0")}'`;
   return v ? ` AND ${c} = '${esc(v)}'` : "";
 }).join("");
@@ -111,6 +116,10 @@ function fillFilters() {
       fillSeasons(fsel[c], vals);
     } else {
       fsel[c].add(new Option("All " + label, ""));
+      if (c === "Type") {
+        fsel[c].add(new Option("All fishes", TYPE_FISHES));
+        fsel[c].add(new Option("All competitions", TYPE_COMPS));
+      }
       vals.forEach(v => fsel[c].add(new Option(v, v)));
     }
   }
