@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from config import LAKE_FISHES, SEASON, SEASON_PARAM, fishes_for
+from config import LAKES, SEASON, SEASON_PARAM, fishes_for, lake_filter
 from db import connect, vacuum
 from scraper import ScrapeError, count_rows, fetch, get_token
 
@@ -50,14 +50,14 @@ def validate_totals(records, previous_players):
                           f"(limit: {MIN_PREVIOUS_RATIO:.0%} of the stored value).")
 
 
-def previous_total(con, season):
-    return con.execute("SELECT COALESCE(SUM(Players), 0) FROM totalrecords WHERE Season = ?",
-                       (season,)).fetchone()[0]
+def previous_total(con, season, lakes=None):
+    return con.execute("SELECT COALESCE(SUM(Players), 0) FROM totalrecords WHERE Season = ?"
+                       + lake_filter(lakes), (season,)).fetchone()[0]
 
 
-def save_to_sqlite(records, season, con):
+def save_to_sqlite(records, season, con, lakes=None):
     with con:  # one transaction: commits on success, rolls back on error
-        con.execute("DELETE FROM totalrecords WHERE Season = ?", (season,))
+        con.execute("DELETE FROM totalrecords WHERE Season = ?" + lake_filter(lakes), (season,))
         con.executemany(
             "INSERT INTO totalrecords (Season, Lake_ID, Fish_ID, Players) VALUES (?,?,?,?)",
             [(season, r["Lake_ID"], r["Fish_ID"], r["Players"]) for r in records],
@@ -78,7 +78,7 @@ def main():
 
     with requests.Session() as session:
         token = get_token(session)
-        for lake in LAKE_FISHES:
+        for lake in LAKES:
             print(f"Scanning Lake {lake}...")
             for fish in fishes_for(lake):
                 try:
