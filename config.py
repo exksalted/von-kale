@@ -77,3 +77,26 @@ SPECIAL_FISH_NAMES = {
 def fishes_for(lake):
     """Fish IDs to scan on a lake: its own species plus the universal competition IDs."""
     return list(dict.fromkeys(LAKE_FISHES.get(lake, []) + GLOBAL_SPECIAL_FISHES))
+
+
+def _parse_lakes(raw):
+    ids = []
+    for tok in re.split(r"[\s,]+", raw.strip()):
+        if not tok:
+            continue
+        if not tok.isdigit() or int(tok) not in LAKE_FISHES:
+            raise ValueError(f"Unknown lake ID {tok!r} (valid: 1-{max(LAKE_FISHES)})")
+        ids.append(int(tok))
+    return list(dict.fromkeys(ids))
+
+
+# Optional LAKES env var (space/comma separated lake IDs) restricts a run to those lakes.
+LAKES = _parse_lakes(os.environ.get("LAKES", "")) or list(LAKE_FISHES)
+
+
+def lake_filter(lakes=None, column="Lake_ID"):
+    """' AND Lake_ID IN (...)' for a lake subset; '' for a full scan. IDs are validated ints."""
+    lakes = LAKES if lakes is None else lakes
+    if set(lakes) == set(LAKE_FISHES):
+        return ""
+    return f" AND {column} IN ({','.join(str(int(l)) for l in lakes)})"
