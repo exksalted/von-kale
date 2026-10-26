@@ -1,0 +1,48 @@
+name: Probe missing fishes
+
+on:
+  workflow_dispatch:
+    inputs:
+      min_id:
+        description: "Lowest fish ID to probe"
+        default: "1"
+      max_id:
+        description: "Highest fish ID to probe"
+        default: "32"
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4
+
+      - name: Probe leaderboards
+        run: python probe_fishes.py --min "${{ inputs.min_id }}" --max "${{ inputs.max_id }}" --out missing_fishes.py
+
+      - name: Show result in job summary
+        if: success()
+        run: |
+          {
+            echo '### Missing fish IDs'
+            echo '```python'
+            cat missing_fishes.py
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload result
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: missing_fishes
+          path: missing_fishes.py
