@@ -12,23 +12,26 @@
   <nav class="nav" id="nav" aria-label="Main"></nav>
   <h1>Team Von-Kale records</h1>
   <section class="panel">
-    <div class="controls">
-      <select id="presets" aria-label="Preset query"></select>
-      <select id="f-Nick" aria-label="Player"></select>
-      <select id="f-Lake" aria-label="Lake"></select>
-      <select id="f-Type" aria-label="Type"></select>
-      <select id="f-Season" aria-label="Season"></select>
-    </div>
+  <div class="controls">
+    <select id="presets" aria-label="Preset query"></select>
+    <select id="f-Nick" aria-label="Player"></select>
+    <select id="f-Lake" aria-label="Lake"></select>
+    <select id="f-Type" aria-label="Type"></select>
+    <select id="f-Season" aria-label="Season"></select>
+  </div>
+  <details>
+    <summary>Advanced: edit SQL</summary>
+    <textarea id="sql" spellcheck="false" aria-label="SQL query"></textarea>
     <div class="bar">
-      <div id="status" role="status">Loading database…</div>
-        <button class="btn" id="export" type="button" disabled>Export CSV</button>
+      <button class="btn" id="run" type="button" disabled>Run</button>
+      <span class="hint">Ctrl/⌘ + Enter runs the query</span>
     </div>
-    <details>
-      <summary>Advanced: edit SQL</summary>
-      <textarea id="sql" spellcheck="false" aria-label="SQL query"></textarea>  
-    </details>
-    <div class="bar"><div id="status" role="status">Loading database…</div></div>
-  </section>
+  </details>
+  <div class="bar">
+    <div id="status" role="status">Loading database…</div>
+    <button class="btn" id="export" type="button" disabled>Export CSV</button>
+  </div>
+</section>
   <div id="out"></div>
 </main>
 
