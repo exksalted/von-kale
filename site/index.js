@@ -29,6 +29,9 @@ const runBtn = $("run");
 const fsel = Object.fromEntries(Object.keys(FILTERS).map(c => [c, $("f-" + c)]));
 const selects = [presetSel, ...Object.values(fsel)];
 
+const exportBtn = $("export");
+let lastResult = null;  // { columns, values } of the last successful query
+
 let db;
 let dirty = false;            // SQL textarea was edited by hand
 const lastValue = new Map();  // select -> last accepted value, to undo a cancelled change
@@ -86,9 +89,32 @@ function toCell(col, v, season) {
   if (col === "Season") return seasonLabel(v);
   return v;
 }
+const DELIM = ";";
+
+const csvField = v => {
+  if (v === null) return "";
+  const s = String(v);
+  return /["\r\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+};
+
+function exportCsv() {
+  if (!lastResult) return;
+  const lines = [lastResult.columns, ...lastResult.values].map(r => r.map(csvField).join(DELIM));
+  // BOM so Excel reads UTF-8 (ä, ö) correctly
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "records.csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+
+exportBtn.onclick = exportCsv;
 
 function run() {
   setStatus(statusEl, "");
+  lastResult = null;
+  exportBtn.disabled = true;
   try {
     const t = performance.now();
     const res = db.exec(box.value);
@@ -96,6 +122,8 @@ function run() {
     out.replaceChildren();
     const first = res[0];
     if (!first) { setStatus(statusEl, "Query OK, no rows.", "ok"); return; }
+    lastResult = first;
+    exportBtn.disabled = false;
     const { columns, values } = first;
     const season = fsel.Season.value;
     const num = columns.map((_, i) => i).filter(i => values.some(r => typeof r[i] === "number"));
