@@ -19,13 +19,13 @@
       <select id="f-Type" aria-label="Type"></select>
       <select id="f-Season" aria-label="Season"></select>
     </div>
+    <div class="bar">
+      <div id="status" role="status">Loading database…</div>
+        <button class="btn" id="export" type="button" disabled>Export CSV</button>
+    </div>
     <details>
       <summary>Advanced: edit SQL</summary>
-      <textarea id="sql" spellcheck="false" aria-label="SQL query"></textarea>
-      <div class="bar">
-        <button class="btn" id="run" type="button" disabled>Run</button>
-        <span class="hint">Ctrl/⌘ + Enter runs the query</span>
-      </div>
+      <textarea id="sql" spellcheck="false" aria-label="SQL query"></textarea>  
     </details>
     <div class="bar"><div id="status" role="status">Loading database…</div></div>
   </section>
