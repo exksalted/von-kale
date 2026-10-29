@@ -89,15 +89,17 @@ function toCell(col, v, season) {
   if (col === "Season") return seasonLabel(v);
   return v;
 }
+const DELIM = ";";
+
 const csvField = v => {
   if (v === null) return "";
   const s = String(v);
-  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /["\r\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
 function exportCsv() {
   if (!lastResult) return;
-  const lines = [lastResult.columns, ...lastResult.values].map(r => r.map(csvField).join(","));
+  const lines = [lastResult.columns, ...lastResult.values].map(r => r.map(csvField).join(DELIM));
   // BOM so Excel reads UTF-8 (ä, ö) correctly
   const blob = new Blob(["\uFEFF" + lines.join("\r\n") + "\r\n"], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
