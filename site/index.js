@@ -110,6 +110,8 @@ exportBtn.onclick = exportCsv;
 
 function run() {
   setStatus(statusEl, "");
+  lastResult = null;
+  exportBtn.disabled = true;
   try {
     const t = performance.now();
     const res = db.exec(box.value);
@@ -117,6 +119,8 @@ function run() {
     out.replaceChildren();
     const first = res[0];
     if (!first) { setStatus(statusEl, "Query OK, no rows.", "ok"); return; }
+    lastResult = first;
+    exportBtn.disabled = false;
     const { columns, values } = first;
     const season = fsel.Season.value;
     const num = columns.map((_, i) => i).filter(i => values.some(r => typeof r[i] === "number"));
