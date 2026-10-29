@@ -29,6 +29,9 @@ const runBtn = $("run");
 const fsel = Object.fromEntries(Object.keys(FILTERS).map(c => [c, $("f-" + c)]));
 const selects = [presetSel, ...Object.values(fsel)];
 
+const exportBtn = $("export");
+let lastResult = null;  // { columns, values } of the last successful query
+
 let db;
 let dirty = false;            // SQL textarea was edited by hand
 const lastValue = new Map();  // select -> last accepted value, to undo a cancelled change
