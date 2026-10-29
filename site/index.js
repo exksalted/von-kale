@@ -108,6 +108,7 @@ function exportCsv() {
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
+
 exportBtn.onclick = exportCsv;
 
 function run() {
