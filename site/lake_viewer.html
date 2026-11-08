@@ -1,22 +1,46 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pro Pilkki 2 - lake viewer</title>
+<link rel="stylesheet" href="style.css">
 <style>
-*{box-sizing:border-box} body{margin:0;font:13px/1.35 Arial,Helvetica,sans-serif;color:#1d2530;display:flex;height:100vh;overflow:hidden;background:#dfe6ec}
-#side{width:370px;min-width:370px;background:#f6f8fa;border-right:1px solid #b9c3cc;overflow-y:auto;padding:8px 10px}
+/* Lake viewer: full-screen layout on top of the shared site tokens in style.css */
+body{display:flex;height:100dvh;min-height:0;padding:0;overflow:hidden;font-size:13px;line-height:1.4}
+#side{width:380px;min-width:380px;padding:1.25rem 1rem 2rem;overflow-y:auto;background:color-mix(in srgb,var(--surface) 85%,transparent);border-right:1px solid var(--border)}
 #main{flex:1;position:relative;min-width:0}
-canvas{position:absolute;left:0;top:0;width:100%;height:100%;cursor:grab;display:block} canvas.drag{cursor:grabbing}
-h1{font-size:16px;margin:2px 0 6px} h2{font-size:12px;margin:0;text-transform:uppercase;letter-spacing:.04em}
-details{border:1px solid #cfd8df;border-radius:5px;background:#fff;margin:6px 0;padding:4px 8px} summary{cursor:pointer;font-weight:bold;padding:2px 0}
-label{display:flex;align-items:center;gap:5px;margin:2px 0} input[type=range]{width:90px} input[type=number]{width:70px}
-button{font:inherit;padding:2px 8px;border:1px solid #98a6b1;background:#eef2f5;border-radius:4px;cursor:pointer} button:hover{background:#e0e8ee}
-select{font:inherit;padding:2px}
-.row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:3px 0} .sw{display:inline-block;width:11px;height:11px;border-radius:2px;flex:none}
-table{border-collapse:collapse;width:100%;font-size:12px} th,td{padding:1px 4px;border-bottom:1px solid #e3e8ec;text-align:right;white-space:nowrap} th{position:sticky;top:0;background:#eef2f5;cursor:pointer} td:first-child,th:first-child,td:nth-child(2),th:nth-child(2){text-align:left}
-tr.off td{opacity:.35} tr:hover td{background:#fff6d6} .small{color:#5d6b77;font-size:11px}
-#info{position:absolute;left:8px;bottom:8px;background:rgba(255,255,255,.93);border:1px solid #9aa8b3;border-radius:5px;padding:5px 8px;max-width:520px;font-size:12px;pointer-events:none}
-#stats{position:absolute;right:8px;top:8px;background:rgba(255,255,255,.93);border:1px solid #9aa8b3;border-radius:5px;padding:5px 8px;font-size:12px}
-#tbl{max-height:300px;overflow:auto} .var{color:#0b5cad;text-decoration:underline;cursor:pointer}
+canvas{position:absolute;left:0;top:0;width:100%;height:100%;cursor:grab;display:block}canvas.drag{cursor:grabbing}
+#side h1{margin:0 0 .9rem;font-size:1.35rem}
+#side details{margin:.75rem 0;padding:.6rem .8rem;background:var(--surface);border:1px solid var(--border);border-radius:14px;box-shadow:0 10px 30px var(--shadow)}
+#side summary{padding:.1rem 0;color:var(--text);font-size:14px;font-weight:600}
+#side summary:hover{color:var(--accent)}
+#side details[open]>summary{margin-bottom:.4rem}
+label{display:flex;align-items:center;gap:.4rem;margin:.2rem 0}
+input[type=checkbox]{accent-color:var(--accent);width:15px;height:15px;margin:0}
+input[type=range]{width:100px;accent-color:var(--accent)}
+input[type=number]{width:80px;padding:.3rem .5rem;font:inherit;color:var(--text);background:var(--input-bg);border:1px solid var(--border);border-radius:8px;outline:none}
+input[type=number]:focus,#side select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--focus-ring)}
+#side select{width:auto;padding:.3rem .55rem;border-radius:8px}
+#side #lakeSel{flex:1 1 100%;width:100%;padding:.55rem .8rem;border-radius:10px}
+#side button{padding:.3rem .8rem;color:var(--muted);background:var(--surface-2);border:1px solid var(--border);border-radius:8px;font-weight:600;cursor:pointer}
+#side button:hover{color:var(--text);border-color:var(--accent)}
+.row{display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin:.35rem 0}
+.sw{display:inline-block;width:11px;height:11px;border-radius:3px;flex:none}
+.small{color:var(--muted);font-size:12px}
+.legend{flex:none;width:120px;height:9px;border:1px solid var(--border);border-radius:3px;background:linear-gradient(90deg,#ffffcc,#c7e9b4,#7fcdbb,#41b6c4,#1d91c0,#225ea8,#253494,#081d58)}
+#tbl{max-height:320px;overflow:auto;margin:.4rem 0;border:1px solid var(--border);border-radius:10px}
+#tbl table{font-size:12px}
+#tbl th,#tbl td{padding:.3rem .45rem;text-align:right}
+#tbl th{position:sticky;top:0;z-index:1;font-size:10.5px;cursor:pointer}
+#tbl th:hover{color:var(--text)}
+#tbl td:first-child,#tbl th:first-child,#tbl td:nth-child(2),#tbl th:nth-child(2){text-align:left}
+#tbl td input{vertical-align:middle;margin-right:.3rem}
+tr.off td{opacity:.35}
+.var{color:var(--accent);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+#info,#stats{position:absolute;padding:.5rem .75rem;font-size:12px;color:var(--text);background:color-mix(in srgb,var(--surface) 90%,transparent);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 30px var(--shadow);backdrop-filter:blur(6px)}
+#info{left:12px;bottom:12px;max-width:540px;pointer-events:none}
+#stats{right:12px;top:12px}
+#info b,#stats b{color:var(--h1-to)}
+@media (max-width:760px){body{flex-direction:column}#side{width:auto;min-width:0;max-height:50dvh;border-right:0;border-bottom:1px solid var(--border)}}
 </style></head><body>
 <div id="side">
  <h1>Pro Pilkki 2 lake viewer</h1>
@@ -25,17 +49,17 @@ tr.off td{opacity:.35} tr:hover td{background:#fff6d6} .small{color:#5d6b77;font
  <div class="small">Drag = pan, wheel = zoom, double-click = zoom in. Species colours are assigned per lake. Sizes are presumed grams (decoded Gaussian mixtures). Units: game map units, y grows downward.</div>
 
  <details open><summary>Layers</summary>
-  <label><input type="checkbox" id="L_depth" checked> Water + depth (game functions, exact)</label><div style="margin-left:18px;display:flex;align-items:center;gap:4px" class="small">0 cm<div style="width:140px;height:9px;background:linear-gradient(90deg,#ffffcc,#c7e9b4,#7fcdbb,#41b6c4,#1d91c0,#225ea8,#253494,#081d58);border:1px solid #999"></div>1000 cm (land = grey)</div><label style="margin-left:18px">opacity <input type="range" id="O_depth" min="0" max="100" value="100"></label>
-  <label><input type="checkbox" id="L_type"> Type map (habitat byte)</label><label style="margin-left:18px">opacity <input type="range" id="O_type" min="0" max="100" value="60"></label>
-  <label><input type="checkbox" id="L_vmap"> Game picture (approximate alignment)</label><label style="margin-left:18px">opacity <input type="range" id="O_vmap" min="0" max="100" value="85"></label>
-  <label><input type="checkbox" id="L_vdepth"> Game depth picture (approximate)</label><label style="margin-left:18px">opacity <input type="range" id="O_vdepth" min="0" max="100" value="85"></label>
-  <label><input type="checkbox" id="L_dens"> Fish density heat map (visible groups)</label><label style="margin-left:18px">opacity <input type="range" id="O_dens" min="0" max="100" value="80"></label>
-  <label><input type="checkbox" id="L_rel"> Habitat strength map (bottom relief)</label><label style="margin-left:18px">opacity <input type="range" id="O_rel" min="0" max="100" value="75"></label><div class="small" style="margin-left:18px">What the game would give its habitat points: 0.5 x relief (max 50). Shallow rims of drop-offs score high.</div>
-  <label><input type="checkbox" id="L_rect" checked> Group rectangles</label><label style="margin-left:18px"><input type="checkbox" id="L_rectfill"> fill</label>
-  <label><input type="checkbox" id="L_start" checked> Group start points</label>
-  <label><input type="checkbox" id="L_hot" checked> Hotspots (DATA2)</label><label style="margin-left:18px"><input type="checkbox" id="L_hotonly" checked> only those liked by visible species</label>
-  <div class="row small" style="margin-left:18px">season: period <select id="hsP"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select> day <input type="number" id="hsD" value="15" min="1" max="30" style="width:52px"></div>
-  <label><input type="checkbox" id="L_areas" checked> Player start areas</label>
+  <label><input type="checkbox" id="L_depth"> Water + depth (game functions, exact)</label><div style="margin-left:22px;display:flex;align-items:center;gap:6px" class="small">0 cm<div class="legend"></div>1000 cm (land = grey)</div><label style="margin-left:22px">opacity <input type="range" id="O_depth" min="0" max="100" value="100"></label>
+  <label><input type="checkbox" id="L_type"> Type map (habitat byte)</label><label style="margin-left:22px">opacity <input type="range" id="O_type" min="0" max="100" value="60"></label>
+  <label><input type="checkbox" id="L_vmap" checked> Game picture (approximate alignment)</label><label style="margin-left:22px">opacity <input type="range" id="O_vmap" min="0" max="100" value="85"></label>
+  <label><input type="checkbox" id="L_vdepth"> Game depth picture (approximate)</label><label style="margin-left:22px">opacity <input type="range" id="O_vdepth" min="0" max="100" value="85"></label>
+  <label><input type="checkbox" id="L_dens" checked> Fish density heat map (visible groups)</label><label style="margin-left:22px">opacity <input type="range" id="O_dens" min="0" max="100" value="80"></label>
+  <label><input type="checkbox" id="L_rel"> Habitat strength map (bottom relief)</label><label style="margin-left:22px">opacity <input type="range" id="O_rel" min="0" max="100" value="75"></label><div class="small" style="margin-left:22px">What the game would give its habitat points: 0.5 x relief (max 50). Shallow rims of drop-offs score high.</div>
+  <label><input type="checkbox" id="L_rect"> Group rectangles</label><label style="margin-left:22px"><input type="checkbox" id="L_rectfill"> fill</label>
+  <label><input type="checkbox" id="L_start"> Group start points</label>
+  <label><input type="checkbox" id="L_hot" checked> Hotspots (DATA2)</label><label style="margin-left:22px"><input type="checkbox" id="L_hotonly" checked> only those liked by visible species</label>
+  <div class="row small" style="margin-left:22px">season: period <select id="hsP"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option><option>5</option><option>6</option><option>7</option></select> day <input type="number" id="hsD" value="15" min="1" max="30" style="width:52px"></div>
+  <label><input type="checkbox" id="L_areas"> Player start areas</label>
   <div id="align" style="display:none" class="small"><b>Picture alignment</b> (fitted, about +-1000 units off):
    <div class="row">dx <input type="range" id="A_dx" min="-4000" max="4000" step="50" value="0"> dy <input type="range" id="A_dy" min="-4000" max="4000" step="50" value="0"></div>
    <div class="row">scale x <input type="range" id="A_sx" min="70" max="130" value="100"> y <input type="range" id="A_sy" min="70" max="130" value="100"> <button id="A_reset">reset</button></div></div>
@@ -47,8 +71,8 @@ tr.off td{opacity:.35} tr:hover td{background:#fff6d6} .small{color:#5d6b77;font
  </details>
 
  <details open><summary>Size filter</summary>
-  <div class="row">Window <input type="number" id="szA" value="0" min="0" step="10"> to <input type="number" id="szB" value="100000" min="0" step="10"> g</div>
-  <div class="row">Show groups with at least <input type="range" id="szP" min="0" max="100" value="10"> <b id="szPv">10</b>% of fish in the window</div>
+  <div class="row">Window <input type="number" id="szA" value="0" min="0" step="10"> to <input type="number" id="szB" value="15000" min="0" step="10"> g</div>
+  <div class="row">Show groups with at least <input type="range" id="szP" min="0" max="100" value="0"> <b id="szPv">0</b>% of fish in the window</div>
   <div class="small">Probability uses each group's size mixture (normal components). "Target size": set the window to e.g. 500 - 100000 g. The heat map then shows expected fish in the window.</div>
   <div class="row">Season class for the activity column <select id="seasonCls"><option value="0">early (periods 0-1)</option><option value="1" selected>mid (2-4)</option><option value="2">late (5-7)</option></select></div>
   <div class="row"><button id="clearSolo">Clear variant solo</button><span class="small" id="soloTxt"></span></div>
@@ -66,7 +90,8 @@ const D={"t10":[1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,1.0,
 const $=id=>document.getElementById(id);
 const cv=$('cv'),ctx=cv.getContext('2d');
 let dpr=1,lake=null,sc=0.01,tx=0,ty=0,hov=null,solo=null,sortKey='sp',sortDir=1,focusId=null;
-const spOn={},manual={},filt={a:0,b:100000,p:10};
+const DEF={a:0,b:15000,p:0};
+const spOn={},manual={},filt={...DEF};
 const PAL=['#1f77b4','#ff7f0e','#2ca02c','#d62728','#9467bd','#8c564b','#e377c2','#555555','#bcbd22','#17becf','#0b3d91','#b8860b'];
 function col(t){return (lake&&lake.col&&lake.col[t])||'#555'}
 function erf(x){const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y}
@@ -138,8 +163,9 @@ function loadLake(i){
   for(const g of lake.groups){g.mean=g.comps.reduce((s,c)=>s+c[0]*c[2],0)/Math.max(1e-12,g.comps.reduce((s,c)=>s+c[2],0))}
   for(const k in spOn)delete spOn[k];for(const k in manual)delete manual[k];
   for(const g of lake.groups)spOn[g.t]=true;
-  solo=null;focusId=null;buildSpecies();recompute();resetView();
+  solo=null;focusId=null;buildSpecies();syncAlign();recompute();resetView();
 }
+function syncAlign(){$('align').style.display=($('L_vmap').checked||$('L_vdepth').checked)?'block':'none'}
 function recompute(){for(const g of lake.groups)g.p=pWin(g,filt.a,filt.b);for(const g of lake.groups)g.vis=isVis(g);buildTable();buildDensity();updateStats();draw()}
 function isVis(g){if(!spOn[g.t]||manual[g.id]===false)return false;if(solo&&!(g.t===solo.t&&g.sv===solo.sv))return false;return g.p>=filt.p/100}
 function buildSpecies(){
@@ -181,7 +207,7 @@ function drawPix(c,op,smooth){ctx.globalAlpha=op;ctx.imageSmoothingEnabled=smoot
 function drawVis(img,op){if(!img||!img.complete||!img.naturalWidth)return;const v=lake.vis,f=v.fit;const sx=+$('A_sx').value/100,sy=+$('A_sy').value/100,dx=+$('A_dx').value,dy=+$('A_dy').value;
   const uw=f.ww/v.wpx*sx,uh=f.wh/v.hpx*sy;const left=f.ox-v.margin*uw+dx,top=f.oy-v.margin*uh+dy;ctx.globalAlpha=op;ctx.imageSmoothingEnabled=true;ctx.drawImage(img,X(left),Y(top),img.naturalWidth*uw*sc,img.naturalHeight*uh*sc);ctx.globalAlpha=1}
 function draw(){
-  if(!lake)return;ctx.setTransform(dpr,0,0,dpr,0,0);const W=cv.width/dpr,H=cv.height/dpr;ctx.fillStyle='#cfd9e1';ctx.fillRect(0,0,W,H);
+  if(!lake)return;ctx.setTransform(dpr,0,0,dpr,0,0);const W=cv.width/dpr,H=cv.height/dpr;ctx.fillStyle='#0b0d12';ctx.fillRect(0,0,W,H);
   const on=id=>$(id).checked,op=id=>$(id).value/100;
   if(on('L_vmap'))drawVis(lake.imgMap,op('O_vmap'));
   if(on('L_vdepth'))drawVis(lake.imgDep,op('O_vdepth'));
@@ -190,13 +216,13 @@ function draw(){
   if(on('L_rel')){buildRelief();ctx.globalAlpha=op('O_rel');ctx.imageSmoothingEnabled=false;ctx.drawImage(lake.cRel,X(0),Y(0),lake.cRel.width*lake.relSt*sc,lake.cRel.height*lake.relSt*sc);ctx.globalAlpha=1}
   if(on('L_dens'))drawPix(lake.cDens,op('O_dens'),false);
   // map border
-  ctx.strokeStyle='#6b7b88';ctx.lineWidth=1;ctx.strokeRect(X(0),Y(0),lake.maxX*sc,lake.maxY*sc);
-  if(on('L_areas')){ctx.strokeStyle='#d00';ctx.lineWidth=2;ctx.fillStyle='#d00';ctx.font='12px Arial';lake.starts.forEach((a,i)=>{ctx.strokeRect(X(a[0]),Y(a[1]),(a[2]-a[0])*sc,(a[3]-a[1])*sc);ctx.fillText('start '+(i+1),X(a[0])+3,Y(a[1])+13)})}
+  ctx.strokeStyle='#3a4254';ctx.lineWidth=1;ctx.strokeRect(X(0),Y(0),lake.maxX*sc,lake.maxY*sc);
+  if(on('L_areas')){ctx.strokeStyle='#d00';ctx.lineWidth=2;ctx.fillStyle='#d00';ctx.font='12px system-ui, sans-serif';lake.starts.forEach((a,i)=>{ctx.strokeRect(X(a[0]),Y(a[1]),(a[2]-a[0])*sc,(a[3]-a[1])*sc);ctx.fillText('start '+(i+1),X(a[0])+3,Y(a[1])+13)})}
   const vs=lake.groups.filter(g=>g.vis);
   if(on('L_rect'))for(const g of vs){if(!g.rect)continue;const [x1,y1,x2,y2]=g.rect;ctx.strokeStyle=col(g.t);ctx.lineWidth=g.id===focusId?3:1;ctx.globalAlpha=g.id===focusId?1:0.7;if(on('L_rectfill')){ctx.fillStyle=col(g.t);ctx.globalAlpha=0.07;ctx.fillRect(X(x1),Y(y1),(x2-x1)*sc,(y2-y1)*sc);ctx.globalAlpha=g.id===focusId?1:0.7}ctx.strokeRect(X(x1),Y(y1),(x2-x1)*sc,(y2-y1)*sc);ctx.globalAlpha=1}
-  if(on('L_hot')){const only=on('L_hotonly');const vsp=new Set(vs.map(g=>g.t));lake.hot.forEach((h,i)=>{let mw=0;for(const t of vsp)mw=Math.max(mw,h.w[t]||0);if(only&&mw===0)return;const a=only?0.3+0.7*mw/10:0.8;ctx.globalAlpha=a;ctx.strokeStyle='#000';ctx.setLineDash([5,4]);ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(X(h.x),Y(h.y),h.r*sc,0,7);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#000';ctx.font='11px Arial';ctx.fillText('\u2605 H'+i,X(h.x)-8,Y(h.y)+4);ctx.globalAlpha=1})}
+  if(on('L_hot')){const only=on('L_hotonly');const vsp=new Set(vs.map(g=>g.t));lake.hot.forEach((h,i)=>{let mw=0;for(const t of vsp)mw=Math.max(mw,h.w[t]||0);if(only&&mw===0)return;const a=only?0.3+0.7*mw/10:0.8;ctx.globalAlpha=a;ctx.strokeStyle='#000';ctx.setLineDash([5,4]);ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(X(h.x),Y(h.y),h.r*sc,0,7);ctx.stroke();ctx.setLineDash([]);ctx.fillStyle='#000';ctx.font='11px system-ui, sans-serif';ctx.fillText('\u2605 H'+i,X(h.x)-8,Y(h.y)+4);ctx.globalAlpha=1})}
   if(on('L_start'))for(const g of vs){ctx.fillStyle=col(g.t);ctx.strokeStyle='#fff';ctx.lineWidth=1;ctx.beginPath();ctx.arc(X(g.start[0]),Y(g.start[1]),3.5,0,7);ctx.fill();ctx.stroke()}
-  if(hov){ctx.strokeStyle='#000';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(X(hov.x)-8,Y(hov.y));ctx.lineTo(X(hov.x)+8,Y(hov.y));ctx.moveTo(X(hov.x),Y(hov.y)-8);ctx.lineTo(X(hov.x),Y(hov.y)+8);ctx.stroke()}
+  if(hov){ctx.strokeStyle='#fff';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(X(hov.x)-8,Y(hov.y));ctx.lineTo(X(hov.x)+8,Y(hov.y));ctx.moveTo(X(hov.x),Y(hov.y)-8);ctx.lineTo(X(hov.x),Y(hov.y)+8);ctx.stroke()}
 }
 function info(x,y){
   let s=`x ${Math.round(x)}, y ${Math.round(y)}`;
@@ -220,17 +246,17 @@ window.addEventListener('resize',resize);
 // controls
 D.lakes.forEach((l,i)=>{const o=document.createElement('option');o.value=i;o.textContent=l.name;$('lakeSel').appendChild(o)});
 $('lakeSel').onchange=()=>{loadLake(+$('lakeSel').value)};
-['L_depth','L_rel','O_rel','hsP','hsD','L_type','L_vmap','L_vdepth','L_dens','L_rect','L_rectfill','L_start','L_hot','L_hotonly','L_areas','O_depth','O_type','O_vmap','O_vdepth','O_dens','A_dx','A_dy','A_sx','A_sy'].forEach(id=>$(id).addEventListener('input',()=>{$('align').style.display=($('L_vmap').checked||$('L_vdepth').checked)?'block':'none';updateStats();draw()}));
+['L_depth','L_rel','O_rel','hsP','hsD','L_type','L_vmap','L_vdepth','L_dens','L_rect','L_rectfill','L_start','L_hot','L_hotonly','L_areas','O_depth','O_type','O_vmap','O_vdepth','O_dens','A_dx','A_dy','A_sx','A_sy'].forEach(id=>$(id).addEventListener('input',()=>{syncAlign();updateStats();draw()}));
 $('A_reset').onclick=()=>{['A_dx','A_dy'].forEach(i=>$(i).value=0);['A_sx','A_sy'].forEach(i=>$(i).value=100);draw()};
 $('resetView').onclick=resetView;
-$('resetAll').onclick=()=>{filt.a=0;filt.b=100000;filt.p=10;$('szA').value=0;$('szB').value=100000;$('szP').value=10;$('szPv').textContent=10;solo=null;for(const k in manual)delete manual[k];for(const g of lake.groups)spOn[g.t]=true;buildSpecies();focusId=null;recompute()};
+$('resetAll').onclick=()=>{Object.assign(filt,DEF);$('szA').value=DEF.a;$('szB').value=DEF.b;$('szP').value=DEF.p;$('szPv').textContent=DEF.p;solo=null;for(const k in manual)delete manual[k];for(const g of lake.groups)spOn[g.t]=true;buildSpecies();focusId=null;recompute()};
 $('spAll').onclick=()=>{for(const k in spOn)spOn[k]=true;buildSpecies();recompute()};
 $('spNone').onclick=()=>{for(const k in spOn)spOn[k]=false;buildSpecies();$('spList').querySelectorAll('input').forEach(e=>e.checked=false);recompute()};
 $('grpAll').onclick=()=>{for(const k in manual)delete manual[k];recompute()};
 $('grpNone').onclick=()=>{for(const g of lake.groups)manual[g.id]=false;recompute()};
 $('seasonCls').onchange=buildTable;
 $('clearSolo').onclick=()=>{solo=null;recompute()};
-$('szA').oninput=()=>{filt.a=+$('szA').value||0;recompute()};$('szB').oninput=()=>{filt.b=+$('szB').value||100000;recompute()};
+$('szA').oninput=()=>{filt.a=+$('szA').value||0;recompute()};$('szB').oninput=()=>{filt.b=+$('szB').value||DEF.b;recompute()};
 $('szP').oninput=()=>{filt.p=+$('szP').value;$('szPv').textContent=filt.p;recompute()};
 $('csv').onclick=()=>{const rows=[['lake','record','species','count','mean_g','p_in_window','size_variant','nudge_variant','season_variant','radius','x1','y1','x2','y2','start_x','start_y']];
   lake.groups.filter(g=>g.vis).forEach(g=>rows.push([lake.name,g.id,g.sp,g.n,g.mean.toFixed(1),g.p.toFixed(3),g.sv,g.nv,g.pv,g.rad,...(g.rect||['','','','']),g.start[0],g.start[1]]));
