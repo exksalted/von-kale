@@ -68,7 +68,7 @@ tr.off td{opacity:.35}
   <label><input type="checkbox" id="L_type"> Type map (habitat byte)</label><label style="margin-left:22px">opacity <input type="range" id="O_type" min="0" max="100" value="60"></label>
   <label><input type="checkbox" id="L_vmap" checked> Game picture</label><label style="margin-left:22px">opacity <input type="range" id="O_vmap" min="0" max="100" value="85"></label>
   <label><input type="checkbox" id="L_vdepth"> Game depth picture</label><label style="margin-left:22px">opacity <input type="range" id="O_vdepth" min="0" max="100" value="85"></label>
-  <label><input type="checkbox" id="L_dens" checked> Heat map (visible groups / area)</label><label style="margin-left:22px">opacity <input type="range" id="O_dens" min="0" max="100" value="80"></label>
+  <label><input type="checkbox" id="L_dens" checked> Heat map (fish area / record area)</label><label style="margin-left:22px">opacity <input type="range" id="O_dens" min="0" max="100" value="80"></label>
   <label><input type="checkbox" id="L_rel"> Habitat strength map</label><label style="margin-left:22px">opacity <input type="range" id="O_rel" min="0" max="100" value="75"></label><div class="small" style="margin-left:22px">What the game would give its habitat points: 0.5 x relief (max 50). Shallow rims of drop-offs score high.</div>
   <label><input type="checkbox" id="L_rect"> Group rectangles</label>
   <label><input type="checkbox" id="L_hot" checked> Hotspots</label><label style="margin-left:22px"><input type="checkbox" id="L_hotonly" checked> only those liked by visible species</label>
@@ -211,7 +211,7 @@ function buildDensity(){
   const w=lake.w,h=lake.h,d=new Float32Array(w*h);let mx=0;
   for(const g of lake.groups){if(!g.vis||!g.rect)continue;const [x1,y1,x2,y2]=g.rect;const cx1=Math.max(0,Math.ceil(x1/600)),cx2=Math.min(w-1,Math.floor(x2/600)),cy1=Math.max(0,Math.ceil(y1/600)),cy2=Math.min(h-1,Math.floor(y2/600));let cells=[];
     for(let cy=cy1;cy<=cy2;cy++)for(let cx=cx1;cx<=cx2;cx++)if(!(lake.dep[cy*w+cx]&16)&&inShape(g,cx*600,cy*600))cells.push(cy*w+cx);
-    if(!cells.length)continue;const area=g.sh==='ellipse'?Math.PI*g.ell[2]*g.ell[3]:(x2-x1)*(y2-y1);if(!(area>0))continue;const wgt=1e6/area;for(const k of cells)d[k]+=wgt}
+    if(!cells.length)continue;const area=g.sh==='ellipse'?Math.PI*g.ell[2]*g.ell[3]:(x2-x1)*(y2-y1);if(!(area>0))continue;const wgt=Math.PI*g.rad*g.rad/area;for(const k of cells)d[k]+=wgt}
   for(let k=0;k<w*h;k++)if(d[k]>mx)mx=d[k];lake.densMax=mx;
   const g=lake.cDens.getContext('2d'),im=g.createImageData(w,h);
   for(let k=0;k<w*h;k++){const v=mx>0?d[k]/mx:0;if(v<=0){im.data[4*k+3]=0;continue}const s=v;im.data[4*k]=255;im.data[4*k+1]=Math.round(230*(1-s));im.data[4*k+2]=Math.round(40*(1-s));im.data[4*k+3]=Math.round(60+195*s)}
@@ -219,7 +219,7 @@ function buildDensity(){
 }
 function updateStats(){
   let n=0,f=0;const by={};for(const g of lake.groups)if(g.vis){n++;f+=g.n;by[g.sp]=(by[g.sp]||0)+g.n}
-  $('stats').innerHTML=`<b>${n}</b> groups, <b>${f}</b> fish`+(lake.densMax>0&&$('L_dens').checked?`<br><span class="small">heat map max ${lake.densMax.toPrecision(2)} groups per 1000x1000 units</span>`:'');
+  $('stats').innerHTML=`<b>${n}</b> groups, <b>${f}</b> fish`+(lake.densMax>0&&$('L_dens').checked?`<br><span class="small">heat map max ${lake.densMax.toPrecision(2)} groups in reach</span>`:'');
 }
 function resize(){dpr=window.devicePixelRatio||1;const r=cv.getBoundingClientRect();cv.width=Math.round(r.width*dpr);cv.height=Math.round(r.height*dpr);draw()}
 function resetView(){const r=cv.getBoundingClientRect();const W=lake.maxX+1200,H=lake.maxY+1200;sc=Math.min(r.width/W,r.height/H)*0.97;tx=(r.width-lake.maxX*sc)/2;ty=(r.height-lake.maxY*sc)/2;draw()}
