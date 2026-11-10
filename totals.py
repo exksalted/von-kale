@@ -66,6 +66,7 @@ def save_to_sqlite(records, season, con, lakes=None):
             UPDATE totalrecords SET Rarity = CASE
               WHEN Fish_ID > 100 THEN 1.0
               WHEN Players = 0 THEN 0.0
+              WHEN Fish_ID = 26 AND Lake_ID IN (1, 2, 6, 8, 11, 12, 15, 25, 26, 27, 33, 36, 37, 41, 43, 46) THEN 1.0
               ELSE (SELECT CAST(MAX(tr.Players) AS REAL) FROM totalrecords tr
                     WHERE tr.Season = totalrecords.Season
                       AND tr.Lake_ID = totalrecords.Lake_ID) / Players
