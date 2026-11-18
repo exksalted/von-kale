@@ -140,6 +140,41 @@ Principle: a bad scrape must never reach the published DB. On failure the DB is 
   mysteriously miss names, check that the files are complete.
 - Nothing here has been run against the live site by an AI agent; the scrapers are tested with fake responses only.
 
+## Lake viewer (separate tool, not part of the site)
+
+`lake_viewer.html` is a stand-alone page built by the game-data pipeline (`viewer_template.html` +
+`build_viewer.py`), with live data from `read_fish.py --serve`. It is a personal tool for single-player/offline
+play, not published with the site. The pipeline and its user guide are no longer kept up to date for other users;
+change the template only. Where its choices differ from the site rules above, the site rules win, except for the
+  table rules under "Side panels" below, which apply to the viewer only.
+
+- **Removed on purpose** (don't bring back): the type-map layer (the game never uses it because of a coordinate
+  bug), the "(fish area / record area)" text, the dot-radius scale input, the "Paste JSON (rarely needed)" box,
+  the "Download recorded positions (CSV)" button, the hole-size selector and the hole-fit chance.
+- **Species**: Made is off by default. Buttons in the order All, Made (only Made), None.
+- **Fish groups table** columns: species, rec, n, mean g ±sd, top g ±sd (abbreviated), radius. Buttons Tick all,
+  Tick biggest, Untick all. "Tick biggest" ticks, per species, every record with the largest top mean + 2 × top sd
+  (ties all ticked).
+- **Hover on the map**: `x, y | cell (a,b) | depth N cm`, then "visible groups here". A hotspot line appears only
+  when the pointer is inside a hotspot's radius; species with the same value per stimulus are grouped
+  ("0.100 per stimulus: A, B, C; ...").
+- **Hover on a live fish**: rec #, species, radius, mean ±sd, and top mean ±sd only if it differs. No bait likes,
+  shyness, hole-fit chance or "size drawn only at a bite" text.
+- **Players**: you in red, other players/bots in blue.
+- **Holes**: all drawn the same (hole size is not readable yet), as a high-contrast marker: dark halo, turquoise
+  ring, red centre; a larger red centre means occupied. No small/big legend.
+- **Live fish**: trails off by default, with "Clear trails" next to the trails box. Heading arrows on by default,
+  with an arrowhead; length = distance the group covers in 60 s at its current speed. A group counts as stopped
+  after 1.5 s without a position change (readings arrive once a second, so 1 s made it flicker).
+- **Highlighted records**: the live table shows only rec, species, top g, top sd, radius. Highlighted groups show
+  their mood in the label. Their area (rectangle/ellipse) is hidden unless "area of highlighted" is ticked.
+- **Bite reach** dot mode: three rings, no gradient. Solid ring with a light shaded disc = 50 % (0.57 × record
+  radius), dashed = 25 % (1.03 ×), dotted = 0 % cut-off (1.64 ×). These follow the game's range factor
+  `0.5·2^(-4q) + 0.5 - 0.5q`; the record radius itself is not a boundary.
+- **Side panels**: stretching is preferred over scrolling. Tables never scroll sideways: the side panel widens to fit
+  the widest fish-group table. The fish-group and highlight (live) tables may scroll vertically; everything else
+  grows instead. The bait-likes box has no inner scrollbar and hides baits whose range is -100..-100. "This game's lure ratings" and "This game's bait likes" are separate collapsible boxes.
+
 ## Open / deferred
 
 - "Total fish score" / "Total competition score" presets sum across all seasonal records when "All seasonal
